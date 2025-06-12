@@ -25,6 +25,8 @@ public class Account implements UserDetails {
 
     public String email;
 
+    public String fullName;
+
     public String phoneNumber;
 
     @Enumerated(EnumType.STRING)
