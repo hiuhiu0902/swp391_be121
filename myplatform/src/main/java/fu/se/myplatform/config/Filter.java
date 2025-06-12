@@ -34,7 +34,8 @@ public class Filter extends OncePerRequestFilter {
 
     private final List<String> PUBLIC_API = List.of(
             "POST:/api/register",
-            "POST:/api/login"
+            "POST:/api/login",
+            "PUT:/api/account/{userName}/profile"
     );
 
     public boolean isPublicAPI(String uri, String method) {
@@ -99,7 +100,8 @@ public class Filter extends OncePerRequestFilter {
 
     public String getToken(HttpServletRequest request) {
         String authHeader = request.getHeader("Authorization");
-        if (authHeader == null) return null;
+        if (authHeader == null || !authHeader.startsWith("Bearer "))
+            return null;
         return authHeader.substring(7);
     }
 }

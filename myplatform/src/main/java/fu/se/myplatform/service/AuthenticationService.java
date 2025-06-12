@@ -1,9 +1,8 @@
 package fu.se.myplatform.service;
 
-import fu.se.myplatform.dto.AccountResponse;
-import fu.se.myplatform.dto.EmailDetail;
-import fu.se.myplatform.dto.LoginRequest;
+import fu.se.myplatform.dto.*;
 import fu.se.myplatform.entity.Account;
+import fu.se.myplatform.enums.Gender;
 import fu.se.myplatform.exception.exception.AuthenticationException;
 import fu.se.myplatform.repository.AuthenticationRepository;
 import org.modelmapper.ModelMapper;
@@ -63,6 +62,41 @@ public class AuthenticationService implements UserDetailsService {
         String token = tokenService.generateToken(account);
         accountResponse.setToken(token);
         return accountResponse;
+    }
+
+    public ViewProfile getUserProfile(String userName) {
+        // Lấy đối tượng Account từ cơ sở dữ liệu
+        Account account = authenticationRepository.findAccountByUserName(userName);
+
+        // Chuyển đối tượng Account thành ViewProfile
+        ViewProfile ViewProfile = new ViewProfile();
+
+        ViewProfile.setUserName(account.getUsername());
+        ViewProfile.setEmail(account.getEmail());
+        ViewProfile.setPhoneNumber(account.getPhoneNumber());
+        ViewProfile.setGender(String.valueOf(account.getGender()));
+        ViewProfile.setProfilePicture(account.getProfilePictureUrl());  // Nếu có
+        ViewProfile.setRole(String.valueOf(account.getRole()));
+        ViewProfile.setEnabled(account.isEnabled());
+
+        return ViewProfile;
+    }
+    public Account updateProfile(String userName, UpdateProfile updateProfileDTO) {
+        // Lấy thông tin người dùng từ cơ sở dữ liệu
+        Account account = authenticationRepository.findAccountByUserName(userName);
+
+        if (account == null) {
+            throw new RuntimeException("Account not found for user: " + userName);  // Kiểm tra nếu người dùng không tồn tại
+        }
+
+        // Cập nhật các thông tin người dùng từ UpdateProfileDTO
+        account.setEmail(updateProfileDTO.getEmail());
+        account.setPhoneNumber(updateProfileDTO.getPhoneNumber());
+        account.setGender(Gender.valueOf(updateProfileDTO.getGender()));
+        // Lưu lại thông tin đã cập nhật vào cơ sở dữ liệu
+        authenticationRepository.save(account);
+
+        return account;
     }
 
     @Override
