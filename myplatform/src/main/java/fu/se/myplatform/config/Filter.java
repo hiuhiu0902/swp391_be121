@@ -100,8 +100,7 @@ public class Filter extends OncePerRequestFilter {
 
     public String getToken(HttpServletRequest request) {
         String authHeader = request.getHeader("Authorization");
-        if (authHeader == null || !authHeader.startsWith("Bearer "))
-            return null;
+        if (authHeader == null) return null;
         return authHeader.substring(7);
     }
 }
