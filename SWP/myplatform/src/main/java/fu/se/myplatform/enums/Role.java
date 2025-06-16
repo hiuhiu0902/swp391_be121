@@ -2,7 +2,7 @@ package fu.se.myplatform.enums;
 
 public enum Role {
     ADMIN,
-    COUCH,
+    COACH,
     STAFF,
     MEMBER,
     USER
