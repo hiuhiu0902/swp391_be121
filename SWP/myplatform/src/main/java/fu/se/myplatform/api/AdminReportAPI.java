@@ -1,12 +1,15 @@
 package fu.se.myplatform.api;
 
+import fu.se.myplatform.dto.AccountResponse;
+import fu.se.myplatform.dto.CreateAccountRequest;
 import fu.se.myplatform.service.AuthenticationService;
 import fu.se.myplatform.service.LogReportService;
+import io.swagger.v3.oas.annotations.Operation;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
 import java.util.Map;
 import java.util.HashMap;
 
@@ -18,9 +21,9 @@ import java.util.HashMap;
  * 4. /api/admin/report/errors - Thống kê lỗi hệ thống
  *
  */
-
+//hahaaaa
 @RestController
-@RequestMapping("/api/admin/report")
+@RequestMapping("/api/admin")
 public class AdminReportAPI {
     @Autowired
     AuthenticationService authenticationService;
@@ -29,7 +32,7 @@ public class AdminReportAPI {
     LogReportService logReportService;
 
     // 2. Thống kê số lượt đăng nhập/đăng ký theo thời gian (giả sử đã có log)
-    @GetMapping("/logins")
+    @GetMapping("/report/logins")
     public ResponseEntity<Map<String, Object>> getLoginRegisterStats() {
         Map<String, Object> stats = new HashMap<>();
         stats.put("loginCount", logReportService.getLoginCount());
@@ -38,11 +41,50 @@ public class AdminReportAPI {
     }
 
     // 4. Thống kê lỗi hệ thống (giả sử đã có log)
-    @GetMapping("/errors")
+    @GetMapping("/report/errors")
     public ResponseEntity<Map<String, Object>> getErrorStats() {
         Map<String, Object> stats = new HashMap<>();
         stats.put("errorCount", logReportService.getErrorCount());
 
         return ResponseEntity.ok(stats);
+    }
+    @PostMapping("/create-account")
+    @io.swagger.v3.oas.annotations.security.SecurityRequirement(name = "bearerAuth")
+    @org.springframework.security.access.prepost.PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<AccountResponse> createSpecialAccount(@RequestBody CreateAccountRequest request) {
+        AccountResponse newAccount = authenticationService.createSpecialAccount(request);
+        return ResponseEntity.ok(newAccount);
+    }
+    @PutMapping("/update-account/{userId}")
+    @io.swagger.v3.oas.annotations.security.SecurityRequirement(name = "bearerAuth")
+    @org.springframework.security.access.prepost.PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<AccountResponse> updateAccountByAdmin(
+            @PathVariable Long userId,
+            @RequestBody fu.se.myplatform.dto.UpdateAccountRequest request) {
+        AccountResponse updated = authenticationService.updateAccountByAdmin(userId, request);
+        return ResponseEntity.ok(updated);
+    }
+
+    @GetMapping("/accounts")
+    @io.swagger.v3.oas.annotations.security.SecurityRequirement(name = "bearerAuth")
+    @org.springframework.security.access.prepost.PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<List<AccountResponse>> getAllAccounts() {
+        List<AccountResponse> accounts = authenticationService.getAllAccounts();
+        return ResponseEntity.ok(accounts);
+    }
+
+
+    @GetMapping("/account/{userId}/detail")
+    @Operation(summary = "View account detail", description = "Get detail information for an account, including createdAt")
+    public ResponseEntity<AccountResponse> getAccountDetail(@PathVariable Long userId) {
+        AccountResponse account = authenticationService.getAccountDetail(userId);
+        return ResponseEntity.ok(account);
+    }
+    @DeleteMapping("/account/{userId}")
+    @io.swagger.v3.oas.annotations.security.SecurityRequirement(name = "bearerAuth")
+    @org.springframework.security.access.prepost.PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<Void> deleteAccount(@PathVariable Long userId) {
+        authenticationService.deleteAccount(userId);
+        return ResponseEntity.noContent().build();
     }
 }

@@ -1,0 +1,39 @@
+package fu.se.myplatform.enums;
+
+public enum Triggers {
+    // Social
+    OFFERED_CIGARETTE,
+    DRINKING_ALCOHOL,
+    PARTY_OR_SOCIAL_EVENT,
+    AROUND_OTHERS_SMOKING,
+    SEEING_SOMEONE_SMOKE,
+    SMELLING_CIGARETTE_SMOKE,
+
+    // Withdrawal
+    IRRITABLE,
+    RESTLESS_OR_JUMPY,
+    STRONG_CRAVINGS,
+    HARD_TIME_CONCENTRATING,
+    WAKING_UP,
+
+    // Routine
+    ON_MY_PHONE,
+    DOWN_TIME,
+    DRINKING_COFFEE,
+    FINISHING_A_MEAL,
+    CIGARETTES_ON_TV,
+    WAITING_FOR_RIDE,
+    WALKING_OR_DRIVING,
+    WATCHING_TV_OR_GAMES,
+    WORKING_OR_STUDYING,
+
+    // Emotional
+    ANGRY,
+    ANXIOUS,
+    BORED,
+    FRUSTRATED,
+    HAPPY,
+    LONELY,
+    SAD,
+    STRESSED
+}

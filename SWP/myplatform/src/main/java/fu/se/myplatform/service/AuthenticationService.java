@@ -7,6 +7,7 @@ import fu.se.myplatform.dto.LoginRequest;
 import fu.se.myplatform.entity.Account;
 import fu.se.myplatform.enums.Role;
 import fu.se.myplatform.exception.exception.AuthenticationException;
+import fu.se.myplatform.repository.AccountRepository;
 import fu.se.myplatform.repository.AuthenticationRepository;
 import org.modelmapper.ModelMapper;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -33,6 +34,9 @@ public class AuthenticationService implements UserDetailsService {
 // You can add methods for user registration, login, etc.
     @Autowired
     TokenService tokenService;
+
+    @Autowired
+    AccountRepository accountRepository;
 
     @Autowired
     ModelMapper modelMapper;
@@ -73,6 +77,10 @@ public class AuthenticationService implements UserDetailsService {
         return newaccount;
     }
 
+    public Account getCurrentAccount() {
+        Account account =(Account) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+        return accountRepository.findByUserName(account.getUsername());
+    }
     public AccountResponse login(LoginRequest loginRequest) {
         try {
             authenticationManager.authenticate(new UsernamePasswordAuthenticationToken(
