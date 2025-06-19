@@ -98,13 +98,13 @@ public class AuthenticationAPI {
         AccountResponse account = authenticationService.getAccountDetail(userId);
         return ResponseEntity.ok(account);
     }
-    @DeleteMapping("/admin/account/{userId}")
-    @io.swagger.v3.oas.annotations.security.SecurityRequirement(name = "bearerAuth")
-    @org.springframework.security.access.prepost.PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<Void> deleteAccount(@PathVariable Long userId) {
-        authenticationService.deleteAccount(userId);
-        return ResponseEntity.noContent().build();
-    }
+//    @DeleteMapping("/admin/account/{userId}")
+//    @io.swagger.v3.oas.annotations.security.SecurityRequirement(name = "bearerAuth")
+//    @org.springframework.security.access.prepost.PreAuthorize("hasRole('ADMIN')")
+//    public ResponseEntity<Void> deleteAccount(@PathVariable Long userId) {
+//        authenticationService.deleteAccount(userId);
+//        return ResponseEntity.noContent().build();
+//    }
 //   Phần upimage code mai~ ma' test như cục cứt chán thật
 //    @PostMapping("/account/{username}/profile/image")
 //    @Operation(
