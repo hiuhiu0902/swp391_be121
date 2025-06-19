@@ -35,13 +35,12 @@ public class Filter extends OncePerRequestFilter {
     private final List<String> PUBLIC_API = List.of(
             "POST:/api/register",
             "POST:/api/login",
-            "PUT:/api/account/{userName}/profile"
+            "GET:/swagger-ui/**",
+            "GET:/v3/api-docs/**"
     );
 
     public boolean isPublicAPI(String uri, String method) {
         AntPathMatcher matcher = new AntPathMatcher();
-
-        if(method.equals("GET")) return true;
 
         return PUBLIC_API.stream().anyMatch(pattern -> {
             String[] parts = pattern.split(":", 2);
