@@ -52,20 +52,17 @@ public class SecurityConfig {
     public SecurityFilterChain securityFilterChain(HttpSecurity http)  throws Exception {
         return http
                 .csrf(AbstractHttpConfigurer::disable)
-                .cors(Customizer.withDefaults())
+//                .cors(Customizer.withDefaults())
+
                 .authorizeHttpRequests(
                         req -> req
-                                .requestMatchers("/api/login", "/api/register", "/swagger-ui/**", "/v3/api-docs/**",
-                                        "/api/account/{username}/profile").permitAll()
-                                .requestMatchers("/api/admin/**").hasRole("ADMIN")
-                                .requestMatchers("/api/staff/**").hasRole("STAFF")
-                                .requestMatchers("/api/coach/**").hasRole("COACH")
-                                .requestMatchers("/api/member/**").hasRole("MEMBER")
-                                .anyRequest().authenticated()
+                                .requestMatchers("/**")
+                                .permitAll()
+                                .anyRequest()
+                                .authenticated()
                 )
                 .userDetailsService(authenticationService)
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-                .addFilterBefore(filter, UsernamePasswordAuthenticationFilter.class)
-                .build();
+                .addFilterBefore(filter, UsernamePasswordAuthenticationFilter.class).build();
     }
 }

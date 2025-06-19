@@ -1,45 +1,54 @@
 package fu.se.myplatform.entity;
 
+import fu.se.myplatform.dto.TaperingStep;
+import fu.se.myplatform.enums.QuitReason;
+import fu.se.myplatform.enums.Triggers;
 import jakarta.persistence.*;
+import lombok.Getter;
+import lombok.Setter;
+
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Set;
 
 @Entity
+@Table(name = "quit_plans")
+@Getter
+@Setter
 public class QuitPlan {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    public long id;
 
-    @OneToOne
-    @JoinColumn(name = "member_id", unique = true)
-    private Member member;
+    public LocalDate startDate;
+    public int cigarettesPerDay;
+    public BigDecimal pricePerPack;
 
-    private int totalWeeks; // Số tuần cai thuốc
-    private int initialCigarettes; // Số điếu ban đầu mỗi ngày
-    private LocalDate startDate;
-    private String status; // active, completed, failed
-    private int packPrice; // Giá tiền 1 bao thuốc (VNĐ)
+    @ElementCollection(fetch = FetchType.EAGER)
+    @CollectionTable(name = "plan_reasons"
+            ,joinColumns = @JoinColumn(
+                    name = "plan_id"))
+    @Enumerated(EnumType.STRING)
+    public Set<QuitReason> reasons;
 
-    @OneToMany(mappedBy = "quitPlan", cascade = CascadeType.ALL)
-    private List<QuitProgress> progresses;
+    @ElementCollection(fetch = FetchType.EAGER)
+    @CollectionTable(name = "plan_triggers"
+            ,joinColumns = @JoinColumn(
+                    name = "plan_id"))
+    @Enumerated(EnumType.STRING)
+    public Set<Triggers> triggers;
 
-    // Getters, setters, constructors
-    public QuitPlan() {}
+    public BigDecimal dailyCost;
+    public BigDecimal weeklyCost;
+    public BigDecimal monthlyCost;
+    public BigDecimal yearlyCost;
 
-    public Long getId() { return id; }
-    public void setId(Long id) { this.id = id; }
-    public Member getMember() { return member; }
-    public void setMember(Member member) { this.member = member; }
-    public int getTotalWeeks() { return totalWeeks; }
-    public void setTotalWeeks(int totalWeeks) { this.totalWeeks = totalWeeks; }
-    public int getInitialCigarettes() { return initialCigarettes; }
-    public void setInitialCigarettes(int initialCigarettes) { this.initialCigarettes = initialCigarettes; }
-    public LocalDate getStartDate() { return startDate; }
-    public void setStartDate(LocalDate startDate) { this.startDate = startDate; }
-    public String getStatus() { return status; }
-    public void setStatus(String status) { this.status = status; }
-    public int getPackPrice() { return packPrice; }
-    public void setPackPrice(int packPrice) { this.packPrice = packPrice; }
-    public List<QuitProgress> getProgresses() { return progresses; }
-    public void setProgresses(List<QuitProgress> progresses) { this.progresses = progresses; }
+    @OneToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id", nullable = false)
+    public Account account;
+    @ElementCollection(fetch = FetchType.EAGER)
+    @CollectionTable(name = "plan_tapering_steps", joinColumns = @JoinColumn(name = "plan_id"))
+    private List<TaperingStep> taperingSchedule;
+
 }
