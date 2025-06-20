@@ -1,14 +1,11 @@
 package fu.se.myplatform.api;
 
-import fu.se.myplatform.dto.AccountResponse;
-import fu.se.myplatform.dto.CreateAccountRequest;
-import fu.se.myplatform.dto.LoginRequest;
-import fu.se.myplatform.dto.ProfileRequest;
-import fu.se.myplatform.dto.ProfileResponse;
+import fu.se.myplatform.dto.*;
 import fu.se.myplatform.entity.Account;
 import fu.se.myplatform.service.AuthenticationService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -66,6 +63,23 @@ public class AuthenticationAPI {
         return ResponseEntity.ok(updatedProfile);
     }
 
+<<<<<<< HEAD
+    @PostMapping("/appi/forgot-password")
+    public ResponseEntity forgotPassword(@Valid @RequestBody ForgotPasswordRequest forgotPasswordRequest){
+        authenticationService.forgotPassword(forgotPasswordRequest);
+        return ResponseEntity.ok("Forgot Password successful");
+    }
+
+    @SecurityRequirement(
+            name = "api"
+    )
+    @PostMapping("/api/reset-password")
+    public void resetPassword(@Valid @RequestBody ResetPasswordRequest resetPasswordRequest){
+        authenticationService.resetPassword(resetPasswordRequest);
+        ResponseEntity.ok("Reset Password successful");
+    }
+=======
+>>>>>>> 4a1f5c0c39b43b62e434892413b2abeb7b8f2c9c
 //   Phần upimage code mai~ ma' test như cục cứt chán thật
 //    @PostMapping("/account/{username}/profile/image")
 //    @Operation(

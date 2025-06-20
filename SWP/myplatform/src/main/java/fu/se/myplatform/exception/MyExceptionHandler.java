@@ -11,6 +11,7 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
+
 @RestControllerAdvice
 public class MyExceptionHandler {
     @Autowired
@@ -34,5 +35,9 @@ public class MyExceptionHandler {
         // Ghi log lỗi hệ thống
         logEventService.logError(e.getMessage(), e.toString());
         return new ResponseEntity<>("Đã xảy ra lỗi hệ thống!", HttpStatus.INTERNAL_SERVER_ERROR);
+    }
+    @ExceptionHandler(MyException.class)
+    public ResponseEntity<String> handleMyException(MyException e) {
+        return new ResponseEntity<>(e.getMessage(), HttpStatus.BAD_REQUEST);
     }
 }

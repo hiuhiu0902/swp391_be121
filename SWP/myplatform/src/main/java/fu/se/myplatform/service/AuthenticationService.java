@@ -1,9 +1,5 @@
 package fu.se.myplatform.service;
-import fu.se.myplatform.dto.ProfileResponse;
-import fu.se.myplatform.dto.ProfileRequest;
-import fu.se.myplatform.dto.AccountResponse;
-import fu.se.myplatform.dto.EmailDetail;
-import fu.se.myplatform.dto.LoginRequest;
+import fu.se.myplatform.dto.*;
 import fu.se.myplatform.entity.Account;
 import fu.se.myplatform.enums.Role;
 import fu.se.myplatform.exception.exception.AuthenticationException;
@@ -273,5 +269,24 @@ public class AuthenticationService implements UserDetailsService {
         staffRepository.deleteByUser(account);
         coachRepository.deleteByUser(account);
         authenticationRepository.delete(account);
+    }
+    public Account resetPassword(ResetPasswordRequest resetPasswordRequest) {
+        Account account = getCurrentAccount();
+        account.setPassword(passwordEncoder.encode(resetPasswordRequest.getPassword()));
+        return  accountRepository.save(account);
+    }
+    public void forgotPassword(ForgotPasswordRequest forgotPasswordRequest) {
+        Account account = authenticationRepository.findAccountByEmail(forgotPasswordRequest.getEmail());
+        if (account == null) {
+            throw new UsernameNotFoundException("User not found");
+        } else {
+
+            EmailDetail emailDetail = new EmailDetail();
+            emailDetail.setRecipient(account.email);
+            emailDetail.setSubject("Forgot Password Request");
+            emailDetail.setLink("http://localhost:8080/reset-password?token=" + tokenService.generateToken(account));
+            emailService.sendMail(emailDetail);
+
+        }
     }
 }

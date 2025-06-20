@@ -2,6 +2,7 @@ package fu.se.myplatform.api;
 
 import fu.se.myplatform.dto.QuitPlanRequest;
 import fu.se.myplatform.dto.QuitPlanResponse;
+
 import fu.se.myplatform.dto.QuitPlanRequest;
 import fu.se.myplatform.dto.QuitPlanResponse;
 import fu.se.myplatform.service.QuitPlanService;
@@ -23,6 +24,12 @@ public class QuitPlanAPI {
     public ResponseEntity<QuitPlanResponse> createPlan(@RequestBody QuitPlanRequest planRequest) {
         QuitPlanResponse response = quitPlanService.createPlan(planRequest);
         return ResponseEntity.ok(response);
+    }
+
+    @DeleteMapping("/plans")
+    public ResponseEntity<Void> deleteCurrentUserPlan() {
+        quitPlanService.deleteCurrentUserPlan();
+        return ResponseEntity.noContent().build();
     }
 
     @DeleteMapping("/plans/{planId}")
