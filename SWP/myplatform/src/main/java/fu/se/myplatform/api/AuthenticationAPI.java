@@ -1,14 +1,11 @@
 package fu.se.myplatform.api;
 
-import fu.se.myplatform.dto.AccountResponse;
-import fu.se.myplatform.dto.CreateAccountRequest;
-import fu.se.myplatform.dto.LoginRequest;
-import fu.se.myplatform.dto.ProfileRequest;
-import fu.se.myplatform.dto.ProfileResponse;
+import fu.se.myplatform.dto.*;
 import fu.se.myplatform.entity.Account;
 import fu.se.myplatform.service.AuthenticationService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -66,44 +63,19 @@ public class AuthenticationAPI {
         return ResponseEntity.ok(updatedProfile);
     }
 
-    @PostMapping("/admin/create-account")
-    @io.swagger.v3.oas.annotations.security.SecurityRequirement(name = "bearerAuth")
-    @org.springframework.security.access.prepost.PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<AccountResponse> createSpecialAccount(@RequestBody CreateAccountRequest request) {
-        AccountResponse newAccount = authenticationService.createSpecialAccount(request);
-        return ResponseEntity.ok(newAccount);
-    }
-    @PutMapping("/admin/update-account/{userId}")
-    @io.swagger.v3.oas.annotations.security.SecurityRequirement(name = "bearerAuth")
-    @org.springframework.security.access.prepost.PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<AccountResponse> updateAccountByAdmin(
-            @PathVariable Long userId,
-            @RequestBody fu.se.myplatform.dto.UpdateAccountRequest request) {
-        AccountResponse updated = authenticationService.updateAccountByAdmin(userId, request);
-        return ResponseEntity.ok(updated);
+    @PostMapping("/appi/forgot-password")
+    public ResponseEntity forgotPassword(@Valid @RequestBody ForgotPasswordRequest forgotPasswordRequest){
+        authenticationService.forgotPassword(forgotPasswordRequest);
+        return ResponseEntity.ok("Forgot Password successful");
     }
 
-    @GetMapping("/admin/accounts")
-    @io.swagger.v3.oas.annotations.security.SecurityRequirement(name = "bearerAuth")
-    @org.springframework.security.access.prepost.PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<List<AccountResponse>> getAllAccounts() {
-        List<AccountResponse> accounts = authenticationService.getAllAccounts();
-        return ResponseEntity.ok(accounts);
-    }
-
-
-    @GetMapping("/account/{userId}/detail")
-    @Operation(summary = "View account detail", description = "Get detail information for an account, including createdAt")
-    public ResponseEntity<AccountResponse> getAccountDetail(@PathVariable Long userId) {
-        AccountResponse account = authenticationService.getAccountDetail(userId);
-        return ResponseEntity.ok(account);
-    }
-    @DeleteMapping("/admin/account/{userId}")
-    @io.swagger.v3.oas.annotations.security.SecurityRequirement(name = "bearerAuth")
-    @org.springframework.security.access.prepost.PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<Void> deleteAccount(@PathVariable Long userId) {
-        authenticationService.deleteAccount(userId);
-        return ResponseEntity.noContent().build();
+    @SecurityRequirement(
+            name = "api"
+    )
+    @PostMapping("/api/reset-password")
+    public void resetPassword(@Valid @RequestBody ResetPasswordRequest resetPasswordRequest){
+        authenticationService.resetPassword(resetPasswordRequest);
+        ResponseEntity.ok("Reset Password successful");
     }
 //   Phần upimage code mai~ ma' test như cục cứt chán thật
 //    @PostMapping("/account/{username}/profile/image")

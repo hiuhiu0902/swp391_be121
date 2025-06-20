@@ -1,8 +1,14 @@
 package fu.se.myplatform.entity;
 
 import jakarta.persistence.*;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
+
 import java.time.LocalDateTime;
 
+@Getter
+@Setter
 @Entity
 public class ErrorLog {
     @Id
@@ -13,7 +19,6 @@ public class ErrorLog {
     private String stackTrace;
     private LocalDateTime errorTime;
 
-    // Constructors
     public ErrorLog() {}
     public ErrorLog(String message, String stackTrace, LocalDateTime errorTime) {
         this.message = message;
@@ -21,14 +26,6 @@ public class ErrorLog {
         this.errorTime = errorTime;
     }
 
-    // Getters and setters
-    public Long getId() { return id; }
-    public void setId(Long id) { this.id = id; }
-    public String getMessage() { return message; }
-    public void setMessage(String message) { this.message = message; }
-    public String getStackTrace() { return stackTrace; }
-    public void setStackTrace(String stackTrace) { this.stackTrace = stackTrace; }
-    public LocalDateTime getErrorTime() { return errorTime; }
-    public void setErrorTime(LocalDateTime errorTime) { this.errorTime = errorTime; }
+
 }
 

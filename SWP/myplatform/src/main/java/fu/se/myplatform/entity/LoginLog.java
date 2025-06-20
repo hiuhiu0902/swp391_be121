@@ -1,8 +1,12 @@
 package fu.se.myplatform.entity;
 
 import jakarta.persistence.*;
-import java.time.LocalDateTime;
+import lombok.Getter;
+import lombok.Setter;
 
+import java.time.LocalDateTime;
+@Setter
+@Getter
 @Entity
 public class LoginLog {
     @Id
@@ -21,14 +25,6 @@ public class LoginLog {
         this.isRegister = isRegister;
     }
 
-    // Getters and setters
-    public Long getId() { return id; }
-    public void setId(Long id) { this.id = id; }
-    public String getUsername() { return username; }
-    public void setUsername(String username) { this.username = username; }
-    public LocalDateTime getLoginTime() { return loginTime; }
-    public void setLoginTime(LocalDateTime loginTime) { this.loginTime = loginTime; }
-    public boolean isRegister() { return isRegister; }
-    public void setRegister(boolean register) { isRegister = register; }
+
 }
 
