@@ -63,6 +63,7 @@ public class AuthenticationAPI {
         return ResponseEntity.ok(updatedProfile);
     }
 
+<<<<<<< HEAD
     @PostMapping("/appi/forgot-password")
     public ResponseEntity forgotPassword(@Valid @RequestBody ForgotPasswordRequest forgotPasswordRequest){
         authenticationService.forgotPassword(forgotPasswordRequest);
@@ -77,6 +78,8 @@ public class AuthenticationAPI {
         authenticationService.resetPassword(resetPasswordRequest);
         ResponseEntity.ok("Reset Password successful");
     }
+=======
+>>>>>>> 4a1f5c0c39b43b62e434892413b2abeb7b8f2c9c
 //   Phần upimage code mai~ ma' test như cục cứt chán thật
 //    @PostMapping("/account/{username}/profile/image")
 //    @Operation(

@@ -7,7 +7,10 @@ import fu.se.myplatform.entity.Account;
 import fu.se.myplatform.entity.QuitPlan;
 import fu.se.myplatform.enums.QuitReason;
 import fu.se.myplatform.enums.Triggers;
+<<<<<<< HEAD
 import fu.se.myplatform.exception.MyException;
+=======
+>>>>>>> 4a1f5c0c39b43b62e434892413b2abeb7b8f2c9c
 import fu.se.myplatform.repository.QuitPlanRepository;
 import org.modelmapper.ModelMapper;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -33,6 +36,7 @@ public class QuitPlanService {
 
     public QuitPlanResponse createPlan(QuitPlanRequest planRequest) {
         Account account = authenticationService.getCurrentAccount();
+<<<<<<< HEAD
         // Nếu đã có kế hoạch thì trả về lỗi, không xóa tự động
         if (quitPlanRepository.findByAccount(account).isPresent()) {
             throw new MyException("Bạn đã có kế hoạch cai thuốc. Vui lòng xóa kế hoạch cũ trước khi tạo mới!");
@@ -42,6 +46,8 @@ public class QuitPlanService {
         if (weeks < 2 || weeks > 6) {
             throw new MyException("Thời gian kế hoạch chỉ được phép từ 2 đến 6 tuần!");
         }
+=======
+>>>>>>> 4a1f5c0c39b43b62e434892413b2abeb7b8f2c9c
         Set<QuitReason> reasons = new HashSet<>(planRequest.getReasons());
         Set<Triggers> triggers = new HashSet<>(planRequest.getTriggers());
 
@@ -95,6 +101,7 @@ public class QuitPlanService {
             int target = (int) Math.round(Math.max(current, 0));
             java.time.LocalDate weekStart = startDate.plusWeeks(i - 1);
             java.time.LocalDate weekEnd = startDate.plusWeeks(i).minusDays(1);
+<<<<<<< HEAD
             TaperingStep step = new TaperingStep(i, weekStart, weekEnd, target, null);
             steps.add(step);
             current -= decreasePerWeek;
@@ -104,6 +111,13 @@ public class QuitPlanService {
         long dayNumber = java.time.temporal.ChronoUnit.DAYS.between(startDate, quitDate) + 1;
         TaperingStep quitStep = new TaperingStep(durationWeeks + 1, quitDate, quitDate, 0, "Từ ngày " + quitDate + " (ngày thứ " + dayNumber + ") bạn sẽ bỏ thuốc");
         steps.add(quitStep);
+=======
+            if (i == durationWeeks) target = 0;
+            TaperingStep step = new TaperingStep(i, weekStart, weekEnd, target);
+            steps.add(step);
+            current -= decreasePerWeek;
+        }
+>>>>>>> 4a1f5c0c39b43b62e434892413b2abeb7b8f2c9c
         return steps;
     }
 
@@ -135,10 +149,21 @@ public class QuitPlanService {
         return modelMapper.map(plan, QuitPlanResponse.class);
     }
 
+<<<<<<< HEAD
     public void deleteCurrentUserPlan() {
         Account account = authenticationService.getCurrentAccount();
         QuitPlan plan = quitPlanRepository.findByAccount(account)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy kế hoạch để xóa!"));
         quitPlanRepository.delete(plan);
+=======
+    public void deletePlan(long planId) {
+        Account account = authenticationService.getCurrentAccount();
+        QuitPlan plan = quitPlanRepository.findById(planId)
+                .orElseThrow(() -> new RuntimeException("Quit plan not found"));
+        if (plan.getAccount().getUserId() != account.getUserId()) {
+            throw new RuntimeException("Bạn không có quyền xóa kế hoạch này!");
+        }
+        quitPlanRepository.deleteById(planId);
+>>>>>>> 4a1f5c0c39b43b62e434892413b2abeb7b8f2c9c
     }
 }
