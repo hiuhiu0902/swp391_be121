@@ -14,6 +14,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -55,7 +56,7 @@ public class QuitPlanService {
 
         BigDecimal dailyCost = planRequest.getPricePerPack()
                 .multiply(BigDecimal.valueOf(planRequest.getNumberOfCigarettes()))
-                .divide(BigDecimal.valueOf(20),BigDecimal.ROUND_HALF_UP); // Assuming 20 cigarettes per pack
+                .divide(BigDecimal.valueOf(20), RoundingMode.HALF_UP); // Assuming 20 cigarettes per pack
         plan.setDailyCost(dailyCost);
         plan.setWeeklyCost(dailyCost.multiply(BigDecimal.valueOf(7)));
         plan.setMonthlyCost(dailyCost.multiply(BigDecimal.valueOf(30)));
