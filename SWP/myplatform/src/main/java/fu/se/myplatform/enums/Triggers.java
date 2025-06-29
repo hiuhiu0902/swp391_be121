@@ -16,6 +16,7 @@ public enum Triggers {
     HARD_TIME_CONCENTRATING,
     WAKING_UP,
 
+
     // Routine
     ON_MY_PHONE,
     DOWN_TIME,

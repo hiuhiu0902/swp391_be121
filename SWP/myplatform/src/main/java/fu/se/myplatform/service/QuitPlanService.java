@@ -6,6 +6,7 @@ import fu.se.myplatform.dto.TaperingStep;
 import fu.se.myplatform.entity.Account;
 import fu.se.myplatform.entity.QuitPlan;
 import fu.se.myplatform.enums.QuitReason;
+import fu.se.myplatform.enums.SupportMethod;
 import fu.se.myplatform.enums.Triggers;
 import fu.se.myplatform.exception.MyException;
 import fu.se.myplatform.repository.QuitPlanRepository;
@@ -43,15 +44,24 @@ public class QuitPlanService {
         if (weeks < 2 || weeks > 6) {
             throw new MyException("Thời gian kế hoạch chỉ được phép từ 2 đến 6 tuần!");
         }
+
+        // Validate pricePerPack
+        if (planRequest.getPricePerPack() == null || planRequest.getPricePerPack().compareTo(BigDecimal.ZERO) <= 0) {
+            throw new MyException("Giá tiền một bao thuốc phải lớn hơn 0!");
+        }
+
         Set<QuitReason> reasons = new HashSet<>(planRequest.getReasons());
         Set<Triggers> triggers = new HashSet<>(planRequest.getTriggers());
+        Set<SupportMethod> supportMethods = new HashSet<>(planRequest.getSupportMethods());
 
         //entity
         QuitPlan plan = new QuitPlan();
         plan.setStartDate(planRequest.getStartDate());
         plan.setCigarettesPerDay(planRequest.getNumberOfCigarettes());
+        plan.setPricePerPack(planRequest.getPricePerPack());  // Thêm dòng này
         plan.setReasons(reasons);
         plan.setTriggers(triggers);
+        plan.setSupportMethods(supportMethods);
         plan.setAccount(account);
 
         BigDecimal dailyCost = planRequest.getPricePerPack()
@@ -71,16 +81,26 @@ public class QuitPlanService {
         quitPlanRepository.save(plan);
 
         //response
-        QuitPlanResponse QuitPlanResponse = modelMapper.map(plan, QuitPlanResponse.class);
-        QuitPlanResponse.setTaperingSchedule(taperingSchedule);
-        QuitPlanResponse.setTips(suggestTips(triggers));
-        QuitPlanResponse.setStartDate(planRequest.getStartDate());
-        QuitPlanResponse.setDailyCost(plan.getDailyCost());
-        QuitPlanResponse.setWeeklyCost(plan.getWeeklyCost());
-        QuitPlanResponse.setMonthlyCost(plan.getMonthlyCost());
-        QuitPlanResponse.setYearlyCost(plan.getYearlyCost());
+        QuitPlanResponse response = modelMapper.map(plan, QuitPlanResponse.class);
+        response.setTaperingSchedule(taperingSchedule);
+        response.setStartDate(plan.getStartDate());
+        response.setDailyCost(plan.getDailyCost());
+        response.setWeeklyCost(plan.getWeeklyCost());
+        response.setMonthlyCost(plan.getMonthlyCost());
+        response.setYearlyCost(plan.getYearlyCost());
+        response.setNumberOfCigarettes(plan.getCigarettesPerDay());
+        response.setPricePerPack(plan.getPricePerPack());  // Map giá trị pricePerPack vào response
+        response.setReasons(plan.getReasons());
+        response.setTriggers(plan.getTriggers());
+        response.setSupportMethods(plan.getSupportMethods());
 
-        return QuitPlanResponse;
+        // Thêm tips dựa trên triggers và support methods
+        List<String> allTips = new ArrayList<>();
+        allTips.addAll(suggestTips(triggers));
+        allTips.addAll(suggestTipsForSupport(supportMethods));
+        response.setTips(allTips);
+
+        return response;
     }
 
     private List<TaperingStep> generateTaperingSchedule(
@@ -89,30 +109,44 @@ public class QuitPlanService {
             int startCigarettesPerDay
     ) {
         List<TaperingStep> steps = new ArrayList<>();
-        double decreasePerWeek = (double) startCigarettesPerDay / durationWeeks;
-        double current = startCigarettesPerDay;
 
+        // Tính số điếu giảm mỗi tuần
+        int totalReduction = startCigarettesPerDay - 1; // Giảm xuống còn 1 điếu ở tuần cuối
+        double decreasePerWeek = (double) totalReduction / durationWeeks;
 
+        // Tạo các bước giảm dần theo tuần (từ tuần 1 đến tuần cuối)
         for (int i = 1; i <= durationWeeks; i++) {
-            int target = (int) Math.round(Math.max(current, 0));
             java.time.LocalDate weekStart = startDate.plusWeeks(i - 1);
             java.time.LocalDate weekEnd = startDate.plusWeeks(i).minusDays(1);
-            TaperingStep step = new TaperingStep(i, weekStart, weekEnd, target, null);
-            steps.add(step);
-            current -= decreasePerWeek;
 
-        // Thêm 1 bước thông báo "Từ ngày ... bạn sẽ bỏ thuốc" dựa trên LocalDate và số thứ tự ngày thực tế
+            // Tính số điếu cho tuần hiện tại
+            int targetCigarettes = (int) Math.round(startCigarettesPerDay - (decreasePerWeek * i));
+
+            // Đảm bảo tuần cuối còn 1 điếu
+            if (i == durationWeeks) {
+                targetCigarettes = 1;
+            } else if (targetCigarettes < 1) {
+                targetCigarettes = 1;
+            }
+
+            TaperingStep step = new TaperingStep(i, weekStart, weekEnd, targetCigarettes, null);
+            steps.add(step);
+        }
+
+        // Thêm bước cuối - ngày bỏ thuốc hoàn toàn (ngày sau tuần cuối)
         java.time.LocalDate quitDate = startDate.plusDays(durationWeeks * 7);
         long dayNumber = java.time.temporal.ChronoUnit.DAYS.between(startDate, quitDate) + 1;
-        TaperingStep quitStep = new TaperingStep(durationWeeks + 1, quitDate, quitDate, 0, "Từ ngày " + quitDate + " (ngày thứ " + dayNumber + ") bạn sẽ bỏ thuốc");
+        TaperingStep quitStep = new TaperingStep(
+                durationWeeks + 1,
+                quitDate,
+                quitDate,
+                0,
+                String.format("Từ ngày %s (ngày thứ %d) bạn sẽ bỏ thuốc hoàn toàn", quitDate, dayNumber)
+        );
         steps.add(quitStep);
-        if (i == durationWeeks) target = 0;
-        TaperingStep step2 = new TaperingStep(i, weekStart, weekEnd, target, null);
-        steps.add(step);
-        current -= decreasePerWeek;
-    }
+
         return steps;
-}
+    }
 
     private List<String> suggestTips(Set<Triggers> triggers) {
         List<String> tips = new java.util.ArrayList<>();
@@ -217,19 +251,117 @@ public class QuitPlanService {
         return tips;
     }
 
-public QuitPlanResponse getCurrentUserPlan() {
-    Account account = authenticationService.getCurrentAccount();
-    QuitPlan plan = quitPlanRepository.findByAccount(account)
-            .orElseThrow(() -> new RuntimeException("No quit plan found for user"));
-    return modelMapper.map(plan, QuitPlanResponse.class);
-}
+    private List<String> suggestTipsForSupport(Set<SupportMethod> supportMethods) {
+        List<String> tips = new ArrayList<>();
+        for (SupportMethod method : supportMethods) {
+            switch (method) {
+                // Support from people
+                case PP_SHARE_WITH_IMPORTANT_PEOPLE:
+                    tips.add("Chia sẻ kế hoạch cai thuốc với người thân và bạn bè để nhận được sự ủng hộ và động viên.");
+                    break;
+                case PP_FIND_QUIT_BUDDY:
+                    tips.add("Tìm một người bạn cùng cai thuốc để có thể chia sẻ và hỗ trợ lẫn nhau.");
+                    break;
+                case PP_ASK_SUCCESSFUL_PEOPLE:
+                    tips.add("Tìm gặp và học hỏi kinh nghiệm từ những người đã cai thuốc thành công.");
+                    break;
+                case PP_JOIN_ONLINE_COMMUNITY:
+                    tips.add("Tham gia các cộng đồng online về cai thuốc để chia sẻ và nhận được lời khuyên hữu ích.");
+                    break;
+                case PP_REACH_OUT_OTHER:
+                    tips.add("Chủ động liên hệ với người khác khi cảm thấy khó khăn trong quá trình cai thuốc.");
+                    break;
 
-public void deleteCurrentUserPlan() {
-    Account account = authenticationService.getCurrentAccount();
-    QuitPlan plan = quitPlanRepository.findByAccount(account)
-            .orElseThrow(() -> new RuntimeException("Không tìm thấy kế hoạch để xóa!"));
-    quitPlanRepository.delete(plan);
-}
+                // Support from experts
+                case EX_TALK_HEALTH_PROFESSIONAL:
+                    tips.add("Trao đổi với bác sĩ hoặc chuyên gia y tế về kế hoạch cai thuốc của bạn.");
+                    break;
+                case EX_INPERSON_COUNSELING:
+                    tips.add("Đăng ký tư vấn trực tiếp với chuyên gia để được hướng dẫn chi tiết.");
+                    break;
+                case EX_CALL_QUITLINE:
+                    tips.add("Gọi đường dây nóng hỗ trợ cai thuốc khi cần được tư vấn ngay.");
+                    break;
+                case EX_SIGNUP_SMOKEFREE_TEXT:
+                    tips.add("Đăng ký nhận tin nhắn động viên và lời khuyên hữu ích từ chương trình cai thuốc.");
+                    break;
+                case EX_DOWNLOAD_SMOKEFREE_APP:
+                    tips.add("Tải ứng dụng hỗ trợ cai thuốc để theo dõi tiến trình và nhận lời khuyên.");
+                    break;
+                case EX_CHAT_ONLINE_COUNSELOR:
+                    tips.add("Sử dụng dịch vụ chat online với chuyên gia tư vấn khi cần hỗ trợ.");
+                    break;
+                case EX_CONNECT_OTHER_EXPERTS:
+                    tips.add("Kết nối với các chuyên gia khác trong lĩnh vực cai thuốc để nhận được nhiều góc nhìn.");
+                    break;
+
+                // Distraction methods
+                case DI_DRINK_WATER:
+                    tips.add("Uống nước thường xuyên, đặc biệt khi cảm thấy thèm thuốc.");
+                    break;
+                case DI_EAT_CRUNCHY_SNACK:
+                    tips.add("Chuẩn bị các loại đồ ăn vặt giòn để ăn thay vì hút thuốc.");
+                    break;
+                case DI_DEEP_BREATHS:
+                    tips.add("Tập các bài thở sâu khi cảm thấy căng thẳng hoặc thèm thuốc.");
+                    break;
+                case DI_EXERCISE:
+                    tips.add("Tập thể dục đều đặn để giảm stress và cải thiện sức khỏe.");
+                    break;
+                case DI_PLAY_GAME_OR_LISTEN_MEDIA:
+                    tips.add("Chơi game hoặc nghe nhạc để giải trí và quên đi cơn thèm thuốc.");
+                    break;
+                case DI_TEXT_OR_CALL_SUPPORTER:
+                    tips.add("Nhắn tin hoặc gọi điện cho người hỗ trợ khi cảm thấy khó khăn.");
+                    break;
+                case DI_GO_TO_NONSMOKING_PLACE:
+                    tips.add("Đến những nơi cấm hút thuốc để tránh cám dỗ.");
+                    break;
+                case DI_FIND_OTHER_DISTRACT:
+                    tips.add("Tìm các hoạt động giải trí khác để chuyển hướng suy nghĩ khỏi thuốc lá.");
+                    break;
+
+                default:
+                    tips.add("Hãy kiên trì với phương pháp bạn đã chọn và điều chỉnh nếu cần.");
+            }
+        }
+        return tips;
+    }
+
+    public QuitPlanResponse getCurrentUserPlan() {
+        Account account = authenticationService.getCurrentAccount();
+        QuitPlan plan = quitPlanRepository.findByAccount(account)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy kế hoạch cai thuốc cho người dùng này!"));
+
+        QuitPlanResponse response = modelMapper.map(plan, QuitPlanResponse.class);
+        // Ánh xạ thêm các trường cần thiết
+        response.setTaperingSchedule(plan.getTaperingSchedule());
+        response.setStartDate(plan.getStartDate());
+        response.setDailyCost(plan.getDailyCost());
+        response.setWeeklyCost(plan.getWeeklyCost());
+        response.setMonthlyCost(plan.getMonthlyCost());
+        response.setYearlyCost(plan.getYearlyCost());
+        response.setNumberOfCigarettes(plan.getCigarettesPerDay());
+        response.setPricePerPack(plan.getPricePerPack());
+        response.setReasons(plan.getReasons());
+        response.setTriggers(plan.getTriggers());
+        response.setSupportMethods(plan.getSupportMethods());
+
+        // Thêm tips dựa trên triggers và support methods
+        List<String> allTips = new ArrayList<>();
+        allTips.addAll(suggestTips(plan.getTriggers()));
+        allTips.addAll(suggestTipsForSupport(plan.getSupportMethods()));
+        response.setTips(allTips);
+
+        return response;
+    }
+
+    public void deleteCurrentUserPlan() {
+        Account account = authenticationService.getCurrentAccount();
+        QuitPlan plan = quitPlanRepository.findByAccount(account)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy kế hoạch để xóa!"));
+        quitPlanRepository.delete(plan);
+    }
     public void deletePlan(long planId) {
         Account account = authenticationService.getCurrentAccount();
         QuitPlan plan = quitPlanRepository.findById(planId)
@@ -238,5 +370,44 @@ public void deleteCurrentUserPlan() {
             throw new RuntimeException("Bạn không có quyền xóa kế hoạch này!");
         }
         quitPlanRepository.deleteById(planId);
+    }
+
+    public QuitPlan getCurrentUserPlanEntity() {
+        Account account = authenticationService.getCurrentAccount();
+        return quitPlanRepository.findByAccount(account)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy kế hoạch cai thuốc cho người dùng này!"));
+    }
+
+    public QuitPlanResponse getPlanById(Long planId) {
+        Account account = authenticationService.getCurrentAccount();
+        QuitPlan plan = quitPlanRepository.findById(planId)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy kế hoạch cai thuốc!"));
+
+        // Kiểm tra quyền truy cập
+        if (plan.getAccount().getUserId() != account.getUserId()) {
+            throw new RuntimeException("Bạn không có quyền xem kế hoạch này!");
+        }
+
+        QuitPlanResponse response = modelMapper.map(plan, QuitPlanResponse.class);
+        // Map đầy đủ các trường
+        response.setTaperingSchedule(plan.getTaperingSchedule());
+        response.setStartDate(plan.getStartDate());
+        response.setDailyCost(plan.getDailyCost());
+        response.setWeeklyCost(plan.getWeeklyCost());
+        response.setMonthlyCost(plan.getMonthlyCost());
+        response.setYearlyCost(plan.getYearlyCost());
+        response.setNumberOfCigarettes(plan.getCigarettesPerDay());
+        response.setPricePerPack(plan.getPricePerPack());
+        response.setReasons(plan.getReasons());
+        response.setTriggers(plan.getTriggers());
+        response.setSupportMethods(plan.getSupportMethods());
+
+        // Thêm tips dựa trên triggers và support methods
+        List<String> allTips = new ArrayList<>();
+        allTips.addAll(suggestTips(plan.getTriggers()));
+        allTips.addAll(suggestTipsForSupport(plan.getSupportMethods()));
+        response.setTips(allTips);
+
+        return response;
     }
 }

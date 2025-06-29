@@ -3,21 +3,24 @@ package fu.se.myplatform.entity;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
-
 import java.time.LocalDate;
 
 @Entity
+@Table(name = "smoking_records")
 @Getter
 @Setter
 public class SmokingRecord {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    public long id;
+    private Long id;
 
-    @ManyToOne
-    @JoinColumn(name = "account_id", nullable = false)
-    public Account account;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id", nullable = false)
+    private Account account;
 
-    public LocalDate date;
-    public int cigarettesSmoked;
+    @Column(nullable = false)
+    private LocalDate date;
+
+    @Column(name = "cigarettes_smoked", nullable = false)
+    private int cigarettesSmoked;
 }
