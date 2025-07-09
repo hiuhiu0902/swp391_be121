@@ -17,7 +17,6 @@ import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import fu.se.myplatform.exception.exception.ResourceNotFoundException;
-import java.beans.Encoder;
 import java.util.List;
 
 @Service

@@ -1,6 +1,7 @@
 package fu.se.myplatform.service;
 
 import fu.se.myplatform.entity.Account;
+import fu.se.myplatform.repository.AccountRepository;
 import fu.se.myplatform.repository.AuthenticationRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -18,6 +19,9 @@ public class AccountService{
     @Autowired
     private PasswordEncoder passwordEncoder;
 
+    @Autowired
+    private AccountRepository accountRepository;
+
     @PreAuthorize("hasAuthority('ADMIN')")
     public List<Account> getAllAccounts() {
         return authenticationRepository.findAll();
@@ -30,5 +34,6 @@ public class AccountService{
 //        account.setRole(newRole);
 //        return authenticationRepository.save(account);
 //    }
+// 4. Block a user account
 
 }

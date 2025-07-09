@@ -26,13 +26,12 @@ public class QuitProgress {
     private LocalDate date; // Ngày khai báo
     private int targetCigarettes; // Số điếu tiêu chuẩn mỗi ngày
     private int actualCigarettes; // Số điếu thực tế user hút
+    private String nameCigarettes;
     private boolean achieved; // Đạt chỉ tiêu hay không
     private String note;
     private String cigaretteType; // Loại thuốc hút
     private int packPrice; // Giá tiền 1 bao thuốc (VNĐ)
 
     // Getters, setters, constructors
-
-
 
 }

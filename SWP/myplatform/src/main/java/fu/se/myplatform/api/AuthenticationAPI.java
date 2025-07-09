@@ -13,7 +13,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 
-@CrossOrigin(origins = "http://localhost:4200")
+//@CrossOrigin(origins = "http://localhost:3000")
 @RestController()
 @RequestMapping("/api")
 public class AuthenticationAPI {
@@ -63,7 +63,7 @@ public class AuthenticationAPI {
         return ResponseEntity.ok(updatedProfile);
     }
 
-    @PostMapping("/appi/forgot-password")
+    @PostMapping("/forgot-password")
     public ResponseEntity forgotPassword(@Valid @RequestBody ForgotPasswordRequest forgotPasswordRequest){
         authenticationService.forgotPassword(forgotPasswordRequest);
         return ResponseEntity.ok("Forgot Password successful");
@@ -72,23 +72,10 @@ public class AuthenticationAPI {
     @SecurityRequirement(
             name = "api"
     )
-    @PostMapping("/api/reset-password")
+    @PostMapping("/reset-password")
     public void resetPassword(@Valid @RequestBody ResetPasswordRequest resetPasswordRequest){
         authenticationService.resetPassword(resetPasswordRequest);
         ResponseEntity.ok("Reset Password successful");
     }
-//   Phần upimage code mai~ ma' test như cục cứt chán thật
-//    @PostMapping("/account/{username}/profile/image")
-//    @Operation(
-//        summary = "Upload profile image",
-//        description = "Upload a profile image for a user",
-//        security = {@SecurityRequirement(name = "bearerAuth")}
-//    )
-//    @SecurityRequirement(name = "bearerAuth")
-//    public ResponseEntity<String> uploadProfileImage(
-//            @PathVariable String username,
-//            @RequestParam("image") MultipartFile imageFile) {
-//        String imageUrl = authenticationService.uploadProfileImage(username, imageFile);
-//        return ResponseEntity.ok(imageUrl);
-//    }
+
 }

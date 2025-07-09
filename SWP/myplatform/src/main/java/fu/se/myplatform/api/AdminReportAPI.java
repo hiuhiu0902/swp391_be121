@@ -5,8 +5,10 @@ import fu.se.myplatform.dto.CreateAccountRequest;
 import fu.se.myplatform.service.AuthenticationService;
 import fu.se.myplatform.service.LogReportService;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -49,15 +51,15 @@ public class AdminReportAPI {
         return ResponseEntity.ok(stats);
     }
     @PostMapping("/create-account")
-    @io.swagger.v3.oas.annotations.security.SecurityRequirement(name = "bearerAuth")
-    @org.springframework.security.access.prepost.PreAuthorize("hasRole('ADMIN')")
+    @SecurityRequirement(name = "bearerAuth")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<AccountResponse> createSpecialAccount(@RequestBody CreateAccountRequest request) {
         AccountResponse newAccount = authenticationService.createSpecialAccount(request);
         return ResponseEntity.ok(newAccount);
     }
     @PutMapping("/update-account/{userId}")
-    @io.swagger.v3.oas.annotations.security.SecurityRequirement(name = "bearerAuth")
-    @org.springframework.security.access.prepost.PreAuthorize("hasRole('ADMIN')")
+    @SecurityRequirement(name = "bearerAuth")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<AccountResponse> updateAccountByAdmin(
             @PathVariable Long userId,
             @RequestBody fu.se.myplatform.dto.UpdateAccountRequest request) {
@@ -66,8 +68,8 @@ public class AdminReportAPI {
     }
 
     @GetMapping("/accounts")
-    @io.swagger.v3.oas.annotations.security.SecurityRequirement(name = "bearerAuth")
-    @org.springframework.security.access.prepost.PreAuthorize("hasRole('ADMIN')")
+    @SecurityRequirement(name = "bearerAuth")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<List<AccountResponse>> getAllAccounts() {
         List<AccountResponse> accounts = authenticationService.getAllAccounts();
         return ResponseEntity.ok(accounts);
@@ -76,13 +78,14 @@ public class AdminReportAPI {
 
     @GetMapping("/account/{userId}/detail")
     @Operation(summary = "View account detail", description = "Get detail information for an account, including createdAt")
+    @SecurityRequirement(name = "bearerAuth")
     public ResponseEntity<AccountResponse> getAccountDetail(@PathVariable Long userId) {
         AccountResponse account = authenticationService.getAccountDetail(userId);
         return ResponseEntity.ok(account);
     }
     @DeleteMapping("/account/{userId}")
-    @io.swagger.v3.oas.annotations.security.SecurityRequirement(name = "bearerAuth")
-    @org.springframework.security.access.prepost.PreAuthorize("hasRole('ADMIN')")
+    @SecurityRequirement(name = "bearerAuth")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Void> deleteAccount(@PathVariable Long userId) {
         authenticationService.deleteAccount(userId);
         return ResponseEntity.noContent().build();

@@ -35,8 +35,12 @@ public class Filter extends OncePerRequestFilter {
     private final List<String> PUBLIC_API = List.of(
             "POST:/api/register",
             "POST:/api/login",
+            "POST:/api/forgot-password",
             "GET:/swagger-ui/**",
-            "GET:/v3/api-docs/**"
+            "GET:/v3/api-docs/**",
+            "GET:/v3/api-docs.yaml",       // <- THÊM DÒNG NÀY
+            "GET:/swagger-resources/**",   // <- Swagger cần cái này khi load giao diện
+            "GET:/webjars/**"
     );
 
     public boolean isPublicAPI(String uri, String method) {
