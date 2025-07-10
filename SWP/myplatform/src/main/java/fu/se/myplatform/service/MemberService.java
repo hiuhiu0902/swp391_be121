@@ -1,5 +1,6 @@
 package fu.se.myplatform.service;
 
+import fu.se.myplatform.entity.Account;
 import fu.se.myplatform.entity.Coach;
 import fu.se.myplatform.entity.Member;
 import fu.se.myplatform.exception.exception.AuthenticationException;
@@ -41,14 +42,17 @@ public class MemberService {
     }
 
     // 2. Assign a coach to member (with coach capacity check)
-    public Member assignCoach(Long memberId, Long coachId) {
-        Member member = memberRepository.findById(memberId)
-                .orElseThrow(() -> new AuthenticationException("Member not found"));
+    public Member assignCoach(Account account, Long coachId) {
+        // Tìm member theo account
+        Member member = memberRepository.findByUser(account);
+        if (member == null) {
+            throw new AuthenticationException("Bạn không phải là member!");
+        }
         Coach coach = coachRepository.findById(coachId)
                 .orElseThrow(() -> new AuthenticationException("Coach not found"));
-        // Ensure coach has capacity
+        // Check capacity
         if (!coachService.hasCapacity(coachId)) {
-            throw new AuthenticationException("This coach already has 5 members");
+            throw new AuthenticationException("Coach đã đủ số lượng member");
         }
         member.setCoach(coach);
         return memberRepository.save(member);

@@ -10,11 +10,10 @@ import org.springframework.stereotype.Repository;
 public interface MemberRepository extends JpaRepository<Member, Long> {
     Member findByUser(Account user);
 
+    Member findByUser_UserId(Long userId);
+
     void deleteByUser(Account account);
-    @Query("SELECT COUNT(m) FROM Member m WHERE m.coach.id = :coachId")
+
+    @Query("SELECT COUNT(m) FROM Member m WHERE m.coach.coachId = :coachId")
     long countByCoachId(Long coachId);
-
-    // Có thể thêm tìm kiếm member theo account nếu cần
-    Member findByAccountId(Long accountId);
 }
-

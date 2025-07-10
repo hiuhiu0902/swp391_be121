@@ -1,6 +1,9 @@
 package fu.se.myplatform.service;
 import fu.se.myplatform.dto.*;
 import fu.se.myplatform.entity.Account;
+import fu.se.myplatform.entity.Coach;
+import fu.se.myplatform.entity.Member;
+import fu.se.myplatform.entity.Staff;
 import fu.se.myplatform.enums.Role;
 import fu.se.myplatform.exception.exception.AuthenticationException;
 import fu.se.myplatform.repository.AccountRepository;
@@ -17,6 +20,8 @@ import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import fu.se.myplatform.exception.exception.ResourceNotFoundException;
+
+import java.time.LocalDate;
 import java.util.List;
 
 @Service
@@ -194,21 +199,46 @@ public class AuthenticationService implements UserDetailsService {
         Account updated = authenticationRepository.save(account);
 
         // Update Staff
-        if (request.getPosition() != null) {
-            fu.se.myplatform.entity.Staff staff = staffRepository.findByUser(account);
-            if (staff != null) {
-                staff.setPosition(request.getPosition());
-                staffRepository.save(staff);
+        if (request.getRole() != null) {
+            switch (request.getRole()) {
+                case STAFF -> {
+                    var staff = staffRepository.findByUser(account);
+                    if (staff == null) {
+                        staff = new Staff();          // <- Tên entity đúng như trong thư mục
+                        staff.setUser(account);
+                    }
+                    if (request.getPosition() != null) staff.setPosition(request.getPosition());
+                    if (request.getStatus() != null) staff.setStatus(request.getStatus());
+                    staffRepository.save(staff);
+                }
+                case COACH -> {
+                    var coach = coachRepository.findByUser(account);
+                    if (coach == null) {
+                        coach = new Coach();
+                        coach.setUser(account);
+                    }
+                    if (request.getAddress() != null) coach.setAddress(request.getAddress());
+                    if (request.getStatus() != null) coach.setStatus(request.getStatus());
+                    coachRepository.save(coach);
+                }
+                case MEMBER -> {
+                    var member = memberRepository.findByUser(account);
+                    if (member == null) {
+                        member = new Member();
+                        member.setUser(account);
+                        member.setIsVip(false);
+                        member.setStatus("active");
+                    }
+                    if (request.getIsVip() != null) member.setIsVip(request.getIsVip());
+                    if (request.getVipStartDate() != null) member.setVipStartDate(LocalDate.parse(request.getVipStartDate()));
+                    if (request.getVipExpiryDate() != null) member.setVipExpiryDate(LocalDate.parse(request.getVipExpiryDate()));
+                    if (request.getStatus() != null) member.setStatus(request.getStatus());
+                    memberRepository.save(member);
+                }
+                default -> {}
             }
         }
-        // Update Coach
-        if (request.getAddress() != null) {
-            fu.se.myplatform.entity.Coach coach = coachRepository.findByUser(account);
-            if (coach != null) {
-                coach.setAddress(request.getAddress());
-                coachRepository.save(coach);
-            }
-        }
+
         // Update Member (nếu cần)
         if (request.getIsVip() != null || request.getVipStartDate() != null || request.getVipExpiryDate() != null) {
             fu.se.myplatform.entity.Member member = memberRepository.findByUser(account);
@@ -234,7 +264,7 @@ public class AuthenticationService implements UserDetailsService {
         // Lấy thông tin riêng từng loại
         switch (account.getRole()) {
             case MEMBER -> {
-                fu.se.myplatform.entity.Member member = memberRepository.findByUser(account);
+                Member member = memberRepository.findByUser(account);
                 if (member != null) {
                     response.setIsVip(member.getIsVip());
                     response.setVipStartDate(member.getVipStartDate());

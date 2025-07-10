@@ -40,8 +40,10 @@ public class Filter extends OncePerRequestFilter {
             "GET:/v3/api-docs/**",
             "GET:/v3/api-docs.yaml",       // <- THÊM DÒNG NÀY
             "GET:/swagger-resources/**",   // <- Swagger cần cái này khi load giao diện
-            "GET:/webjars/**"
-    );
+            "GET:/webjars/**",
+            "GET:/ws-chat/**",
+            "GET:/ws-chat"
+            );
 
     public boolean isPublicAPI(String uri, String method) {
         AntPathMatcher matcher = new AntPathMatcher();
