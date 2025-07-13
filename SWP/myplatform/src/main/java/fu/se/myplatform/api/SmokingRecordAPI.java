@@ -49,20 +49,6 @@ public class SmokingRecordAPI {
         return ResponseEntity.ok(response);
     }
 
-    @GetMapping("/current-plan-week")
-    public ResponseEntity<List<SmokingRecordResponse>> getCurrentPlanWeekRecords(
-            @RequestParam(required = false) Integer weekNumber) {
-        List<SmokingRecord> records = smokingRecordService.getPlanWeekRecords(weekNumber);
-        List<SmokingRecordResponse> responseList = records.stream()
-            .map(record -> {
-                SmokingRecordResponse res = new SmokingRecordResponse();
-                res.setDate(record.getDate());
-                res.setCigarettesSmoked(record.getCigarettesSmoked());
-                return res;
-            })
-            .collect(Collectors.toList());
-        return ResponseEntity.ok(responseList);
-    }
 
     @GetMapping("/date/{date}")
     public ResponseEntity<SmokingRecordResponse> getRecordByDate(
