@@ -31,5 +31,4 @@ public class RatingService {
         rating.setComment(comment);
         return ratingRepository.save(rating);
     }
-
 }

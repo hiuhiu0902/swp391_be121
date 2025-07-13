@@ -57,6 +57,7 @@
                             req -> req
                                     .requestMatchers("/api/login", "/api/register", "/swagger-ui/**", "/v3/api-docs/**","/v3/api-docs.yaml","/api/forgot-password",
                                             "/api/account/{username}/profile","/ws-chat/**").permitAll()
+                                    .requestMatchers("/ws/**", "/ws").permitAll()
                                     .requestMatchers("/api/admin/**").hasRole("ADMIN")
                                     .requestMatchers("/api/staff/**").hasRole("STAFF")
                                     .requestMatchers("/api/coach/**").hasRole("COACH")

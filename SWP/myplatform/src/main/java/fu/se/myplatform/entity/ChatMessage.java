@@ -1,9 +1,6 @@
 package fu.se.myplatform.entity;
 
-import jakarta.persistence.Entity;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
+import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -16,8 +13,18 @@ public class ChatMessage {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
-    private Long senderId;     // ID người gửi (VIPMember hoặc Coach)
-    private Long receiverId;   // ID người nhận
+    @Column(nullable = false, columnDefinition = "TEXT")// ID người nhận
     private String content;    // Nội dung tin nhắn
-    private LocalDateTime timestamp;
+    @Column(nullable = false)
+    private LocalDateTime sentAt;
+    @Column(nullable = false)
+    private boolean senderIsCoach;
+    // Tham chiếu mối quan hệ (chỉ chat giữa member và coach đã gán với nhau)
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "member_id", nullable = false)
+    private Member member;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "coach_id", nullable = false)
+    private Coach coach;
 }

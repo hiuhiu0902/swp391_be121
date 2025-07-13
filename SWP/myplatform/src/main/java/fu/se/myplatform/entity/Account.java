@@ -19,7 +19,7 @@ public class  Account implements UserDetails {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "user_id")
-    public long userId;
+    public Long userId;
 
     @Column(name = "user_name", unique = true, nullable = false)
     public String userName;
