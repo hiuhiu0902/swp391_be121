@@ -27,6 +27,10 @@ public class  Account implements UserDetails {
     public String password;
 
     public String fullName;
+
+    @Column(unique = true, nullable = false)
+    @jakarta.validation.constraints.Email(message = "Email không hợp lệ")
+    @jakarta.validation.constraints.NotBlank(message = "Email không được để trống")
     public String email;
 
     public String phoneNumber;

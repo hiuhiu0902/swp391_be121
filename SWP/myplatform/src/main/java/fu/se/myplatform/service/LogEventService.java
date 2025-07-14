@@ -30,5 +30,13 @@ public class LogEventService {
         ErrorLog log = new ErrorLog(message, stackTrace, LocalDateTime.now());
         errorLogRepository.save(log);
     }
-}
 
+    public void logAccountDeletion(String username) {
+        ErrorLog log = new ErrorLog(
+            "Account deleted",
+            "Account with username " + username + " was deleted",
+            LocalDateTime.now()
+        );
+        errorLogRepository.save(log);
+    }
+}

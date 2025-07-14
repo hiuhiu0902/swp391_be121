@@ -290,14 +290,61 @@ public class AuthenticationService implements UserDetailsService {
         }
         return response;
     }
+    @org.springframework.transaction.annotation.Transactional
     public void deleteAccount(Long userId) {
-        Account account = authenticationRepository.findById(userId)
-                .orElseThrow(() -> new ResourceNotFoundException("Account not found"));
-        // Xóa các entity liên quan nếu cần
-        memberRepository.deleteByUser(account);
-        staffRepository.deleteByUser(account);
-        coachRepository.deleteByUser(account);
-        authenticationRepository.delete(account);
+        try {
+            Account account = authenticationRepository.findById(userId)
+                    .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy tài khoản với ID: " + userId));
+
+            // Kiểm tra quyền admin
+            if (!hasAdminRole()) {
+                throw new AccessDeniedException("Không có quyền xóa tài khoản");
+            }
+
+            // Nếu là Member thì chỉ vô hiệu hóa tài khoản thay vì xóa
+            if (account.getRole() == Role.MEMBER) {
+                Member member = memberRepository.findByUser(account);
+                if (member != null) {
+                    member.setIsActived(false);
+                    member.setCoach(null);
+                    memberRepository.save(member);
+                }
+                return;
+            }
+
+            // 1. Xử lý tài khoản COACH
+            if (account.getRole() == Role.COACH) {
+                Coach coach = coachRepository.findByUser(account);
+                if (coach != null) {
+                    // Cập nhật tất cả member để remove coach
+                    List<Member> members = memberRepository.findAllByCoach(coach);
+                    for (Member m : members) {
+                        m.setCoach(null);
+                        memberRepository.save(m);
+                    }
+                    memberRepository.flush();
+                    coachRepository.delete(coach);
+                    coachRepository.flush();
+                }
+            }
+
+            // 2. Xử lý tài khoản STAFF
+            if (account.getRole() == Role.STAFF) {
+                Staff staff = staffRepository.findByUser(account);
+                if (staff != null) {
+                    staffRepository.delete(staff);
+                    staffRepository.flush();
+                }
+            }
+
+            // 3. Xóa tài khoản (chỉ xóa nếu không phải MEMBER)
+            authenticationRepository.delete(account);
+            authenticationRepository.flush();
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            throw new RuntimeException("Lỗi khi xóa tài khoản: " + e.getMessage());
+        }
     }
     public Account resetPassword(ResetPasswordRequest resetPasswordRequest) {
         Account account = getCurrentAccount();
@@ -307,7 +354,7 @@ public class AuthenticationService implements UserDetailsService {
     public void forgotPassword(ForgotPasswordRequest forgotPasswordRequest) {
         Account account = authenticationRepository.findAccountByEmail(forgotPasswordRequest.getEmail());
         if (account == null) {
-            throw new UsernameNotFoundException("User not found");
+            throw new AuthenticationException("User not found");
         } else {
 
             EmailDetail emailDetail = new EmailDetail();

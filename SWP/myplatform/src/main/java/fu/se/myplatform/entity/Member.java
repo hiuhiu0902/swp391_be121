@@ -33,7 +33,7 @@ public class Member {
     private LocalDate vipExpiryDate;
 
     @Column(name = "is_actived")
-    public boolean isActived;
+    private Boolean isActived = true; // Set default value to true
 
     @ManyToOne
     @JoinColumn(name = "coach_id")
