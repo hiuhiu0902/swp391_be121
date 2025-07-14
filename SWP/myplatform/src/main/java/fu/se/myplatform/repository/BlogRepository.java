@@ -33,4 +33,9 @@ public interface BlogRepository extends JpaRepository<Blog, Long> {
            "b.isPublished = true " +
            "ORDER BY b.id DESC")
     Page<Blog> findBlogFeed(Long lastId, BlogCategory category, Boolean featured, Pageable pageable);
+
+    /**
+     * Đếm số blog theo category
+     */
+    long countByCategory(BlogCategory category);
 }

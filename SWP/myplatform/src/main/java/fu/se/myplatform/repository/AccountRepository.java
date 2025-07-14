@@ -31,4 +31,14 @@ public interface AccountRepository extends JpaRepository<Account, Long> {
      * @return list of accounts with the specified role
      */
     List<Account> findByRole(Role role);
+
+    /**
+     * Count accounts by role
+     */
+    long countByRole(Role role);
+
+    /**
+     * Count accounts created after a specific date
+     */
+    long countByCreatedAtAfter(java.time.LocalDateTime date);
 }

@@ -17,7 +17,9 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @Service
@@ -113,5 +115,23 @@ public class BlogService {
         return blogRepository.findById(blogId)
                 .map(blog -> blog.getUser().getUsername().equals(username))
                 .orElse(false);
+    }
+
+    /**
+     * Đếm tổng số bài blog
+     */
+    public long countBlogs() {
+        return blogRepository.count();
+    }
+
+    /**
+     * Đếm số blog theo category
+     */
+    public Map<BlogCategory, Long> countBlogsByCategory() {
+        Map<BlogCategory, Long> counts = new HashMap<>();
+        for (BlogCategory category : BlogCategory.values()) {
+            counts.put(category, blogRepository.countByCategory(category));
+        }
+        return counts;
     }
 }

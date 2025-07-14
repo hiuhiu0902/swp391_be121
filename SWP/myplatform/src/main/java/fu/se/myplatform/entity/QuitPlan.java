@@ -1,13 +1,14 @@
 package fu.se.myplatform.entity;
 
 import fu.se.myplatform.dto.TaperingStep;
+import fu.se.myplatform.enums.PlanStatus;
 import fu.se.myplatform.enums.QuitReason;
 import fu.se.myplatform.enums.SupportMethod;
 import fu.se.myplatform.enums.Triggers;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
-
+import fu.se.myplatform.enums.QuitPlanStatus;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.ArrayList;
@@ -57,7 +58,11 @@ public class QuitPlan {
     private BigDecimal monthlyCost;
     private BigDecimal yearlyCost;
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    @Enumerated(EnumType.STRING)
+    @Column(name = "status", columnDefinition = "varchar(255) default 'ACTIVE'")
+    private QuitPlanStatus status = QuitPlanStatus.ACTIVE;
+
+    @ManyToOne
     @JoinColumn(name = "user_id")
     private Account account;
 

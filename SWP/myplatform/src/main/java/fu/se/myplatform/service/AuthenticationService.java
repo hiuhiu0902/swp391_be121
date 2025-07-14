@@ -23,6 +23,7 @@ import org.springframework.stereotype.Service;
 import fu.se.myplatform.exception.exception.ResourceNotFoundException;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Service
@@ -406,5 +407,20 @@ public class AuthenticationService implements UserDetailsService {
         return accounts.stream()
                 .map(account -> modelMapper.map(account, AccountResponse.class))
                 .toList();
+    }
+
+    /**
+     * Đếm số tài khoản theo role
+     */
+    public long countAccountsByRole(String role) {
+        return accountRepository.countByRole(Role.valueOf(role.toUpperCase()));
+    }
+
+    /**
+     * Đếm số tài khoản mới trong n ngày gần nhất
+     */
+    public long countNewUsersInLastDays(int days) {
+        LocalDateTime startDate = LocalDateTime.now().minusDays(days);
+        return accountRepository.countByCreatedAtAfter(startDate);
     }
 }
