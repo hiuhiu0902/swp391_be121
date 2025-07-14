@@ -1,5 +1,6 @@
 package fu.se.myplatform.api;
 
+import fu.se.myplatform.dto.CoachShortDTO;
 import fu.se.myplatform.entity.Account;
 import fu.se.myplatform.entity.Coach;
 import fu.se.myplatform.entity.Member;
@@ -52,7 +53,7 @@ public class MemberAPI {
     }
     @GetMapping("/coach/available")
     public ResponseEntity<?> getAvailableCoaches() {
-        List<Coach> coaches = memberService.getAvailableCoach();
+        List<CoachShortDTO> coaches = memberService.getAvailableCoach();
         return ResponseEntity.ok(coaches);
     }
 

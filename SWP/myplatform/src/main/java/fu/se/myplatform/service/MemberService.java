@@ -1,5 +1,6 @@
 package fu.se.myplatform.service;
 
+import fu.se.myplatform.dto.CoachShortDTO;
 import fu.se.myplatform.entity.Account;
 import fu.se.myplatform.entity.Coach;
 import fu.se.myplatform.entity.Member;
@@ -59,10 +60,21 @@ public class MemberService {
         member.setCoach(coach);
         return memberRepository.save(member);
     }
-    public List<Coach> getAvailableCoach() {
+    public List<CoachShortDTO> getAvailableCoach() {
+        // Lấy tất cả các coach từ database
         List<Coach> coaches = coachRepository.findAll();
+
+        // Lọc coach còn capacity và chuyển đổi thành CoachShortDTO
         return coaches.stream()
                 .filter(coach -> coachService.hasCapacity(coach.getCoachId()))
+                .map(coach -> {
+                    CoachShortDTO dto = new CoachShortDTO();
+                    dto.setId(coach.getCoachId());
+                    dto.setName(coach.getUser().getFullName()); // Hoặc lấy full name nếu cần
+                    // Nếu có avatar URL, trả về link
+                    dto.setAvatarUrl(coach.getProfileImage() != null ? "/avatars/" + coach.getCoachId() + ".jpg" : null);
+                    return dto;
+                })
                 .collect(Collectors.toList());
     }
 
