@@ -10,6 +10,8 @@ import lombok.Setter;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
@@ -20,45 +22,68 @@ import java.util.Set;
 public class QuitPlan {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    public long id;
-    public LocalDate startDate;
-    public int cigarettesPerDay;
-    public BigDecimal pricePerPack;
+    private Long id;
+
+    private LocalDate startDate;
+    private int cigarettesPerDay;
+    private BigDecimal pricePerPack;
 
     @ElementCollection(fetch = FetchType.EAGER)
-    @CollectionTable(name = "plan_reasons"
-            ,joinColumns = @JoinColumn(
-            name = "plan_id"))
+    @CollectionTable(
+        name = "plan_reasons",
+        joinColumns = @JoinColumn(name = "plan_id")
+    )
     @Enumerated(EnumType.STRING)
-    public Set<QuitReason> reasons;
+    private Set<QuitReason> reasons = new HashSet<>();
 
     @ElementCollection(fetch = FetchType.EAGER)
-    @CollectionTable(name = "plan_triggers"
-            ,joinColumns = @JoinColumn(
-            name = "plan_id"))
+    @CollectionTable(
+        name = "plan_triggers",
+        joinColumns = @JoinColumn(name = "plan_id")
+    )
     @Enumerated(EnumType.STRING)
-    public Set<Triggers> triggers;
+    private Set<Triggers> triggers = new HashSet<>();
 
     @ElementCollection(fetch = FetchType.EAGER)
-    @CollectionTable(name = "plan_supportmethods"
-            ,joinColumns = @JoinColumn(
-            name = "plan_id"))
+    @CollectionTable(
+        name = "plan_supportmethods",
+        joinColumns = @JoinColumn(name = "plan_id")
+    )
     @Enumerated(EnumType.STRING)
-    public Set<SupportMethod> supportMethods;
+    private Set<SupportMethod> supportMethods = new HashSet<>();
 
-    public BigDecimal dailyCost;
-    public BigDecimal weeklyCost;
-    public BigDecimal monthlyCost;
-    public BigDecimal yearlyCost;
-    @OneToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "user_id", nullable = false)
-    public Account account;
+    private BigDecimal dailyCost;
+    private BigDecimal weeklyCost;
+    private BigDecimal monthlyCost;
+    private BigDecimal yearlyCost;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id")
+    private Account account;
 
     @ElementCollection(fetch = FetchType.EAGER)
-    @CollectionTable(name = "plan_tapering_steps", joinColumns = @JoinColumn(name = "plan_id"))
-    private List<TaperingStep> taperingSchedule;
+    @CollectionTable(
+        name = "plan_tapering_steps",
+        joinColumns = @JoinColumn(name = "plan_id")
+    )
+    private List<TaperingStep> taperingSchedule = new ArrayList<>();
 
-    @OneToMany(mappedBy = "quitPlan", cascade = CascadeType.ALL, orphanRemoval = true)
-    private List<QuitProgress> progressList;
+    @OneToMany(
+        mappedBy = "quitPlan",
+        cascade = CascadeType.ALL,
+        orphanRemoval = true,
+        fetch = FetchType.LAZY
+    )
+    private List<QuitProgress> progressList = new ArrayList<>();
 
+    public void clearCollections() {
+        if (this.reasons != null) this.reasons.clear();
+        if (this.triggers != null) this.triggers.clear();
+        if (this.supportMethods != null) this.supportMethods.clear();
+        if (this.taperingSchedule != null) this.taperingSchedule.clear();
+        if (this.progressList != null) {
+            this.progressList.forEach(progress -> progress.setQuitPlan(null));
+            this.progressList.clear();
+        }
+    }
 }

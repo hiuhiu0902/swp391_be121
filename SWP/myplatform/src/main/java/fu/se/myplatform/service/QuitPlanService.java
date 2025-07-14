@@ -10,9 +10,11 @@ import fu.se.myplatform.enums.SupportMethod;
 import fu.se.myplatform.enums.Triggers;
 import fu.se.myplatform.exception.MyException;
 import fu.se.myplatform.repository.QuitPlanRepository;
+import fu.se.myplatform.repository.DailyReasonReportRepository;
 import org.modelmapper.ModelMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -20,7 +22,6 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
-import java.util.stream.Collectors;
 
 @Service
 public class QuitPlanService {
@@ -32,6 +33,9 @@ public class QuitPlanService {
 
     @Autowired
     ModelMapper modelMapper;
+
+    @Autowired
+    private DailyReasonReportRepository dailyReasonReportRepository;
 
     public QuitPlanResponse createPlan(QuitPlanRequest planRequest) {
         Account account = authenticationService.getCurrentAccount();
@@ -274,10 +278,7 @@ public class QuitPlanService {
 
                 // Support from experts
                 case EX_TALK_HEALTH_PROFESSIONAL:
-                    tips.add("Trao đổi với bác sĩ hoặc chuyên gia y tế về kế hoạch cai thuốc của bạn.");
-                    break;
-                case EX_INPERSON_COUNSELING:
-                    tips.add("Đăng ký tư vấn trực tiếp với chuyên gia để được hướng dẫn chi tiết.");
+                    tips.add("Thảo luận với chuyên gia y tế về kế hoạch và tiến trình cai thuốc của bạn.");
                     break;
                 case EX_CALL_QUITLINE:
                     tips.add("Gọi đường dây nóng hỗ trợ cai thuốc khi cần được tư vấn ngay.");
@@ -356,20 +357,34 @@ public class QuitPlanService {
         return response;
     }
 
+    @Transactional
     public void deleteCurrentUserPlan() {
-        Account account = authenticationService.getCurrentAccount();
-        QuitPlan plan = quitPlanRepository.findByAccount(account)
-                .orElseThrow(() -> new RuntimeException("Không tìm thấy kế hoạch để xóa!"));
-        quitPlanRepository.delete(plan);
-    }
-    public void deletePlan(long planId) {
-        Account account = authenticationService.getCurrentAccount();
-        QuitPlan plan = quitPlanRepository.findById(planId)
-                .orElseThrow(() -> new RuntimeException("Quit plan not found"));
-        if (plan.getAccount().getUserId() != account.getUserId()) {
-            throw new RuntimeException("Bạn không có quyền xóa kế hoạch này!");
+        try {
+            Account account = authenticationService.getCurrentAccount();
+            QuitPlan plan = quitPlanRepository.findByAccount(account)
+                    .orElseThrow(() -> new MyException("Không tìm thấy kế hoạch để xóa!"));
+
+            // Xóa các daily reason reports trước
+            dailyReasonReportRepository.deleteAllByQuitPlan(plan);
+
+            // Clear các collection
+            if (plan.getReasons() != null) plan.getReasons().clear();
+            if (plan.getTriggers() != null) plan.getTriggers().clear();
+            if (plan.getSupportMethods() != null) plan.getSupportMethods().clear();
+            if (plan.getTaperingSchedule() != null) plan.getTaperingSchedule().clear();
+            if (plan.getProgressList() != null) {
+                plan.getProgressList().forEach(progress -> progress.setQuitPlan(null));
+                plan.getProgressList().clear();
+            }
+
+            // Xóa plan
+            quitPlanRepository.delete(plan);
+            quitPlanRepository.flush();
+        } catch (MyException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new MyException("Có lỗi khi xóa kế hoạch: " + e.getMessage());
         }
-        quitPlanRepository.deleteById(planId);
     }
 
     public QuitPlan getCurrentUserPlanEntity() {

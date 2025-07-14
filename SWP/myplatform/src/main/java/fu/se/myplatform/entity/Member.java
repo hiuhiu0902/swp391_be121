@@ -16,7 +16,7 @@ public class Member {
     @Column(name = "member_id")
     private Long memberId;
 
-    @OneToOne
+    @OneToOne(cascade = CascadeType.ALL)
     @JoinColumn(name = "user_id", referencedColumnName = "user_id")
     private Account user;
 
@@ -35,7 +35,7 @@ public class Member {
     @Column(name = "is_actived")
     private Boolean isActived = true; // Set default value to true
 
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "coach_id")
     private Coach coach;
     // Ảnh đại diện (có thể giữ lại profileImage, hoặc thêm avatarUrl nếu lưu ngoài server)
@@ -51,5 +51,13 @@ public class Member {
     private String coachRatingComment;
     // Getters and setters
 
-
+    @PrePersist
+    protected void onCreate() {
+        if (isActived == null) {
+            isActived = true;
+        }
+        if (isVip == null) {
+            isVip = false;
+        }
+    }
 }

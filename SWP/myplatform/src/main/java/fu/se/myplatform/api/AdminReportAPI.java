@@ -90,4 +90,31 @@ public class AdminReportAPI {
         authenticationService.deleteAccount(userId);
         return ResponseEntity.noContent().build();
     }
+
+    @GetMapping("/accounts/members")
+    @Operation(summary = "Get all MEMBER accounts", description = "Get list of all accounts with MEMBER role")
+    @SecurityRequirement(name = "bearerAuth")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<List<AccountResponse>> getAllMemberAccounts() {
+        List<AccountResponse> accounts = authenticationService.getAccountsByRole("MEMBER");
+        return ResponseEntity.ok(accounts);
+    }
+
+    @GetMapping("/accounts/staff")
+    @Operation(summary = "Get all STAFF accounts", description = "Get list of all accounts with STAFF role")
+    @SecurityRequirement(name = "bearerAuth")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<List<AccountResponse>> getAllStaffAccounts() {
+        List<AccountResponse> accounts = authenticationService.getAccountsByRole("STAFF");
+        return ResponseEntity.ok(accounts);
+    }
+
+    @GetMapping("/accounts/coaches")
+    @Operation(summary = "Get all COACH accounts", description = "Get list of all accounts with COACH role")
+    @SecurityRequirement(name = "bearerAuth")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<List<AccountResponse>> getAllCoachAccounts() {
+        List<AccountResponse> accounts = authenticationService.getAccountsByRole("COACH");
+        return ResponseEntity.ok(accounts);
+    }
 }
