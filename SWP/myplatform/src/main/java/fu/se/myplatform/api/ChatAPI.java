@@ -1,19 +1,13 @@
 package fu.se.myplatform.api;
 
-import fu.se.myplatform.dto.ChatMessageDTO;
-import fu.se.myplatform.entity.ChatMessage;
-import fu.se.myplatform.entity.Member;
+import fu.se.myplatform.dto.ChatMessageRequest;
+import fu.se.myplatform.dto.ChatMessageResponse;
+import fu.se.myplatform.dto.UserBasicInfoResponse;
 import fu.se.myplatform.service.ChatMessageService;
-import fu.se.myplatform.service.CoachService;
-import fu.se.myplatform.service.MemberService;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.messaging.handler.annotation.MessageMapping;
-import org.springframework.messaging.handler.annotation.Payload;
-import org.springframework.messaging.simp.SimpMessagingTemplate;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-
-import java.time.LocalDateTime;
 import java.util.List;
 
 @RestController
@@ -22,26 +16,37 @@ import java.util.List;
         name = "api"
 )
 public class ChatAPI {
-    @Autowired
-    MemberService memberService;
-
-    @Autowired
-    CoachService coachService;
 
     @Autowired
     ChatMessageService chatMessageService;
-    @Autowired
-    SimpMessagingTemplate messagingTemplate;
+
+    @PostMapping("/send")
+    public ResponseEntity<?> sendMessage(@RequestBody ChatMessageRequest chatRequest) {
+        try {
+            ChatMessageResponse response = chatMessageService.saveMessage(chatRequest);
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
 
     @GetMapping("/history")
-    public List<ChatMessageDTO> getHistory(@RequestParam Long memberId, @RequestParam Long coachId) {
-        return chatMessageService.getChatHistory(memberId, coachId);
+    public ResponseEntity<List<ChatMessageResponse>> getHistory(
+            @RequestParam Long memberId, @RequestParam Long coachId
+    ) {
+        List<ChatMessageResponse> messages = chatMessageService.getChatHistory(memberId, coachId);
+        return ResponseEntity.ok(messages);
     }
-    @PostMapping("/send")
-    public ChatMessageDTO send(@RequestBody ChatMessageDTO chatMessageDTO) {
-        // Test: bạn tự điền userId và senderIsCoach đúng logic (hoặc truyền qua body)
-        Long userId = 6L; // Tạm hardcode
-        boolean senderIsCoach = false;
-        return chatMessageService.sendMessage(chatMessageDTO, userId);
+
+    @GetMapping("/assignable-coaches")
+    public ResponseEntity<List<UserBasicInfoResponse>> getAssignableCoaches(@RequestParam Long memberId) {
+        List<UserBasicInfoResponse> list = chatMessageService.getAssignableCoaches(memberId);
+        return ResponseEntity.ok(list);
     }
-  }
+
+    @GetMapping("/assignable-members")
+    public ResponseEntity<List<UserBasicInfoResponse>> getAssignableMembers(@RequestParam Long coachId) {
+        List<UserBasicInfoResponse> list = chatMessageService.getAssignableMembers(coachId);
+        return ResponseEntity.ok(list);
+    }
+}

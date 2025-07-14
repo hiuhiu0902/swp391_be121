@@ -5,7 +5,7 @@ import lombok.Data;
 import java.time.LocalDateTime;
 
 @Data
-public class ChatMessageDTO {
+public class ChatMessageResponse {
     public Long id;
     public String content;
     public LocalDateTime sentAt;

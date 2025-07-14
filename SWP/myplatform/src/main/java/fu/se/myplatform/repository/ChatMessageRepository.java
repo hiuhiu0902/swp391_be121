@@ -12,6 +12,7 @@ import java.util.List;
 
 public interface ChatMessageRepository extends JpaRepository<ChatMessage, Long> {
     List<ChatMessage> findByMemberAndCoachOrderBySentAtAsc(Member member, Coach coach);
+    List<ChatMessage> findByMember_MemberIdAndCoach_CoachIdOrderBySentAtAsc(Long memberId, Long coachId);
 
     // Thống kê: đếm tin nhắn của coach gửi ra trong ngày
     long countByCoachAndSentAtBetween(Coach coach, LocalDateTime start, LocalDateTime end);

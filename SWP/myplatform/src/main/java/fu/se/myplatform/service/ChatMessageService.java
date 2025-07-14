@@ -1,94 +1,103 @@
 package fu.se.myplatform.service;
 
-import fu.se.myplatform.dto.ChatMessageDTO;
+import fu.se.myplatform.dto.ChatMessageRequest;
+import fu.se.myplatform.dto.ChatMessageResponse;
+import fu.se.myplatform.dto.UserBasicInfoResponse;
 import fu.se.myplatform.entity.ChatMessage;
 import fu.se.myplatform.entity.Coach;
 import fu.se.myplatform.entity.Member;
-import fu.se.myplatform.exception.exception.AuthenticationException;
 import fu.se.myplatform.repository.ChatMessageRepository;
 import fu.se.myplatform.repository.CoachRepository;
 import fu.se.myplatform.repository.MemberRepository;
-import org.modelmapper.ModelMapper;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
-
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
 
 @Service
 public class ChatMessageService {
-
     @Autowired
     ChatMessageRepository chatMessageRepository;
-
     @Autowired
     MemberRepository memberRepository;
-
     @Autowired
     CoachRepository coachRepository;
 
-    @Autowired
-    SimpMessagingTemplate messagingTemplate;
-
-    @Autowired
-    ModelMapper modelMapper;
-
-    // Lưu tin nhắn
-    public ChatMessageDTO sendMessage(ChatMessageDTO dto, long senderUserId) {
-        Member member = memberRepository.findById(dto.getMemberId())
-                .orElseThrow(() -> new AuthenticationException("Member Not Found"));
-        Coach coach = coachRepository.findById(dto.getCoachId())
-                .orElseThrow(() -> new AuthenticationException("Coach Not Found"));
-
-        if (!member.getCoach().getCoachId().equals(coach.getCoachId())) {
-            throw new AuthenticationException("Member và Coach không liên kết");
-        }
-
-        boolean senderIsCoach;
-        if (coach.getUser().getUserId().equals(senderUserId)) {
-            senderIsCoach = true;
-        } else if (member.getUser().getUserId().equals(senderUserId)) {
-            senderIsCoach = false;
-        } else {
-            throw new AuthenticationException("Không có quyền gửi tin nhắn cặp này!");
-        }
-
-        ChatMessage chatMessage = modelMapper.map(dto, ChatMessage.class);
-        chatMessage.setSentAt(LocalDateTime.now());
-        chatMessage.setSenderIsCoach(senderIsCoach);
-        chatMessage.setMember(member);
-        chatMessage.setCoach(coach);
-
-        chatMessage = chatMessageRepository.save(chatMessage);
-
-        ChatMessageDTO outDto = modelMapper.map(chatMessage, ChatMessageDTO.class);
-        outDto.setSenderName(senderIsCoach ? coach.getUser().getUsername() : member.getUser().getUsername());
-
-        messagingTemplate.convertAndSend("/topic/chat/" + member.getMemberId() + "_" + coach.getCoachId(), outDto);
-
-        return outDto;
+    // Kiểm tra member-coach đã assign nhau chưa
+    public boolean isAssigned(Long memberId, Long coachId) {
+        Member member = memberRepository.findById(memberId).orElse(null);
+        return member != null && member.getCoach() != null && member.getCoach().getCoachId().equals(coachId);
     }
 
-    // Lấy lịch sử chat
-    public List<ChatMessageDTO> getChatHistory(Long memberId, Long coachId) {
-        Member member = memberRepository.findById(memberId)
-                .orElseThrow(() -> new AuthenticationException("Member not found"));
-        Coach coach = coachRepository.findById(coachId)
-                .orElseThrow(() -> new AuthenticationException("Coach not found"));
+    public ChatMessageResponse saveMessage(ChatMessageRequest request) {
+        if (!isAssigned(request.getMemberId(), request.getCoachId()))
+            throw new RuntimeException("Member chưa assign với coach này!");
 
-        if (!member.getCoach().getCoachId().equals(coach.getCoachId())) {
-            throw new AuthenticationException("Không đúng cặp chat!");
-        }
+        Member member = memberRepository.findById(request.getMemberId()).orElseThrow();
+        Coach coach = coachRepository.findById(request.getCoachId()).orElseThrow();
 
-        List<ChatMessage> messages = chatMessageRepository.findByMemberAndCoachOrderBySentAtAsc(member, coach);
-        return messages.stream()
-                .map(msg -> {
-                    ChatMessageDTO dto = modelMapper.map(msg, ChatMessageDTO.class);
-                    dto.setSenderName(msg.isSenderIsCoach() ? coach.getUser().getUsername() : member.getUser().getUsername());
-                    return dto;
-                })
-                .collect(Collectors.toList());
+        ChatMessage chat = new ChatMessage();
+        chat.setContent(request.getContent());
+        chat.setSentAt(LocalDateTime.now());
+        chat.setSenderIsCoach(request.isSenderIsCoach());
+        chat.setMember(member);
+        chat.setCoach(coach);
+
+        chat = chatMessageRepository.save(chat);
+
+        ChatMessageResponse response = new ChatMessageResponse();
+        response.setId(chat.getId());
+        response.setContent(chat.getContent());
+        response.setSentAt(chat.getSentAt());
+        response.setSenderIsCoach(chat.isSenderIsCoach());
+        response.setMemberId(chat.getMember().getMemberId());
+        response.setCoachId(chat.getCoach().getCoachId());
+        response.setSenderName(
+                chat.isSenderIsCoach() ? coach.getUser().getFullName() : member.getUser().getFullName()
+        );
+        return response;
+    }
+
+    public List<ChatMessageResponse> getChatHistory(Long memberId, Long coachId) {
+        List<ChatMessage> messages = chatMessageRepository
+                .findByMember_MemberIdAndCoach_CoachIdOrderBySentAtAsc(memberId, coachId);
+        return messages.stream().map(msg -> {
+            ChatMessageResponse res = new ChatMessageResponse();
+            res.setId(msg.getId());
+            res.setContent(msg.getContent());
+            res.setSentAt(msg.getSentAt());
+            res.setSenderIsCoach(msg.isSenderIsCoach());
+            res.setMemberId(msg.getMember().getMemberId());
+            res.setCoachId(msg.getCoach().getCoachId());
+            res.setSenderName(
+                    msg.isSenderIsCoach() ? msg.getCoach().getUser().getFullName() : msg.getMember().getUser().getFullName()
+            );
+            return res;
+        }).collect(Collectors.toList());
+    }
+
+    // Danh sách coach member được chat (gần như luôn chỉ 1 coach)
+    public List<UserBasicInfoResponse> getAssignableCoaches(Long memberId) {
+        Member member = memberRepository.findById(memberId).orElseThrow();
+        Coach coach = member.getCoach();
+        if (coach == null) return List.of();
+        UserBasicInfoResponse coachInfo = new UserBasicInfoResponse();
+        coachInfo.setId(coach.getCoachId());
+        coachInfo.setFullName(coach.getUser().getFullName());
+        coachInfo.setAvatarUrl(null); // bổ sung nếu dùng avatar
+        return List.of(coachInfo);
+    }
+
+    // Danh sách member coach được chat (các member đã assign coach này)
+    public List<UserBasicInfoResponse> getAssignableMembers(Long coachId) {
+        Coach coach = coachRepository.findById(coachId).orElseThrow();
+        return coach.getMembers().stream().map(member -> {
+            UserBasicInfoResponse memberInfo = new UserBasicInfoResponse();
+            memberInfo.setId(member.getMemberId());
+            memberInfo.setFullName(member.getUser().getFullName());
+            memberInfo.setAvatarUrl(null);
+            return memberInfo;
+        }).collect(Collectors.toList());
     }
 }

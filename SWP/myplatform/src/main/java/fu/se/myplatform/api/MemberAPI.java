@@ -1,6 +1,7 @@
 package fu.se.myplatform.api;
 
 import fu.se.myplatform.entity.Account;
+import fu.se.myplatform.entity.Coach;
 import fu.se.myplatform.entity.Member;
 import fu.se.myplatform.repository.AccountRepository;
 import fu.se.myplatform.service.AccountService;
@@ -11,6 +12,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
+
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/member")
@@ -46,6 +49,11 @@ public class MemberAPI {
     public ResponseEntity<?> getMemberAvatarBase64(@PathVariable Long memberId) {
         String base64 = memberService.getProfileImageBase64(memberId);
         return ResponseEntity.ok(base64);
+    }
+    @GetMapping("/coach/available")
+    public ResponseEntity<?> getAvailableCoaches() {
+        List<Coach> coaches = memberService.getAvailableCoach();
+        return ResponseEntity.ok(coaches);
     }
 
     @PutMapping("/coach/{coachId}")

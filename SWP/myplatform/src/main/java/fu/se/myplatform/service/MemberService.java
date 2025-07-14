@@ -14,6 +14,8 @@ import org.springframework.web.multipart.MultipartFile;
 import java.io.IOException;
 import java.time.LocalDate;
 import java.util.Base64;
+import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -56,6 +58,12 @@ public class MemberService {
         }
         member.setCoach(coach);
         return memberRepository.save(member);
+    }
+    public List<Coach> getAvailableCoach() {
+        List<Coach> coaches = coachRepository.findAll();
+        return coaches.stream()
+                .filter(coach -> coachService.hasCapacity(coach.getCoachId()))
+                .collect(Collectors.toList());
     }
 
     // 5. Update VIP status for member (set or remove VIP and dates)
