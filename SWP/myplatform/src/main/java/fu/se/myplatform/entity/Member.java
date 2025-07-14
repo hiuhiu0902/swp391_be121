@@ -38,7 +38,6 @@ public class Member {
     @ManyToOne
     @JoinColumn(name = "coach_id")
     private Coach coach;
-
     // Ảnh đại diện (có thể giữ lại profileImage, hoặc thêm avatarUrl nếu lưu ngoài server)
     @Lob
     @Column(name = "profile_image")

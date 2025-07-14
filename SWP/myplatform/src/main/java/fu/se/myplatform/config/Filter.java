@@ -42,7 +42,9 @@ public class Filter extends OncePerRequestFilter {
             "GET:/swagger-resources/**",   // <- Swagger cần cái này khi load giao diện
             "GET:/webjars/**",
             "GET:/ws-chat/**",
-            "GET:/ws-chat"
+            "GET:/ws-chat",
+            "GET:/ws/**",
+            "GET:/ws"
             );
 
     public boolean isPublicAPI(String uri, String method) {
