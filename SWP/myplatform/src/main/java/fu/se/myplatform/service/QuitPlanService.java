@@ -5,14 +5,15 @@ import fu.se.myplatform.dto.QuitPlanResponse;
 import fu.se.myplatform.dto.TaperingStep;
 import fu.se.myplatform.entity.Account;
 import fu.se.myplatform.entity.QuitPlan;
-import fu.se.myplatform.enums.QuitReason;
-import fu.se.myplatform.enums.SupportMethod;
-import fu.se.myplatform.enums.Triggers;
+import fu.se.myplatform.enums.*;
+import fu.se.myplatform.exception.BadRequestException;
 import fu.se.myplatform.exception.MyException;
+import fu.se.myplatform.exception.exception.ResourceNotFoundException;
 import fu.se.myplatform.repository.QuitPlanRepository;
 import org.modelmapper.ModelMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -409,5 +410,23 @@ public class QuitPlanService {
         response.setTips(allTips);
 
         return response;
+    }
+
+    /**
+     * Đếm số kế hoạch cai thuốc (tạm thời đếm tất cả)
+     */
+    public long countActivePlans() {
+        return quitPlanRepository.countAll();
+    }
+
+    /**
+     * Cập nhật trạng thái của kế hoạch
+     */
+    @Transactional
+    public void updatePlanStatus(Account account, QuitPlanStatus status) {
+        QuitPlan quitPlan = quitPlanRepository.findByAccount(account)
+                .orElseThrow(() -> new ResourceNotFoundException("No quit plan found for this account"));
+        quitPlan.setStatus(status);
+        quitPlanRepository.save(quitPlan);
     }
 }

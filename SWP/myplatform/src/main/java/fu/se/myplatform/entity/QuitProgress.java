@@ -18,7 +18,7 @@ public class QuitProgress {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "quit_plan_id")
     private QuitPlan quitPlan;
 
@@ -29,9 +29,9 @@ public class QuitProgress {
     private String nameCigarettes;
     private boolean achieved; // Đạt chỉ tiêu hay không
     private String note;
-//    private String cigaretteType; // Loại thuốc hút
     private int packPrice; // Giá tiền 1 bao thuốc (VNĐ)
 
-    // Getters, setters, constructors
-
+    public void removeQuitPlan() {
+        this.quitPlan = null;
+    }
 }

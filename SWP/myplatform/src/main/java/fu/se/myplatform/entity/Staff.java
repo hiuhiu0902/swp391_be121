@@ -14,14 +14,20 @@ public class Staff {
     @Column(name = "staff_id")
     private Long staffId;
 
-    @OneToOne
+    @OneToOne(cascade = CascadeType.ALL)
     @JoinColumn(name = "user_id", referencedColumnName = "user_id")
     private Account user;
 
-    @Column(name = "status")
-    private String status;
+    @Column(name = "status", nullable = false)
+    private String status = "active";
 
     @Column(name = "position")
     private String position;
 
+    @PrePersist
+    protected void onCreate() {
+        if (status == null) {
+            status = "active";
+        }
+    }
 }

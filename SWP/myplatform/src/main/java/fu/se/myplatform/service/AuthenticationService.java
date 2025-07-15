@@ -5,6 +5,7 @@ import fu.se.myplatform.entity.Coach;
 import fu.se.myplatform.entity.Member;
 import fu.se.myplatform.entity.Staff;
 import fu.se.myplatform.enums.Role;
+import fu.se.myplatform.exception.BadRequestException;
 import fu.se.myplatform.exception.exception.AuthenticationException;
 import fu.se.myplatform.repository.AccountRepository;
 import fu.se.myplatform.repository.AuthenticationRepository;
@@ -22,6 +23,7 @@ import org.springframework.stereotype.Service;
 import fu.se.myplatform.exception.exception.ResourceNotFoundException;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Service
@@ -55,23 +57,40 @@ public class AuthenticationService implements UserDetailsService {
     @Autowired
     LogEventService logEventService;
     public Account register(Account account) {
-        account.password = passwordEncoder.encode(account.getPassword());
+        // Kiểm tra email đã tồn tại chưa
+        if (authenticationRepository.findAccountByEmail(account.getEmail()) != null) {
+            throw new BadRequestException("Email đã được sử dụng");
+        }
+
+        // Kiểm tra username đã tồn tại chưa
+        if (authenticationRepository.findAccountByUserName(account.getUsername()) != null) {
+            throw new BadRequestException("Tên đăng nhập đã được sử dụng");
+        }
+
+        account.setPassword(passwordEncoder.encode(account.getPassword()));
         account.setRole(Role.MEMBER); // Set default role to MEMBER
         Account newaccount = authenticationRepository.save(account);
 
         // Tạo bản ghi Member tương ứng
-        fu.se.myplatform.entity.Member member = new fu.se.myplatform.entity.Member();
+        Member member = new Member();
         member.setUser(newaccount);
         member.setStatus("active");
         member.setIsVip(false);
+        member.setIsActived(true);  // Set isActived explicitly
         member.setVipStartDate(null);
         member.setVipExpiryDate(null);
         memberRepository.save(member);
 
-        EmailDetail emailDetail = new EmailDetail();
-        emailDetail.setRecipient(account.email);
-        emailDetail.setSubject("Welcome to My Platform");
-        emailService.sendMail(emailDetail);
+        try {
+            EmailDetail emailDetail = new EmailDetail();
+            emailDetail.setRecipient(account.getEmail());
+            emailDetail.setSubject("Chào mừng đến với My Platform");
+            emailService.sendMail(emailDetail);
+        } catch (Exception e) {
+            // Log lỗi nhưng không throw exception vì đây không phải lỗi nghiêm trọng
+            logEventService.logError("Không thể gửi email chào mừng cho " + account.getEmail(), e.getMessage());
+        }
+
         // Ghi log đăng ký
         logEventService.logRegister(account.getUsername());
         return newaccount;
@@ -155,18 +174,19 @@ public class AuthenticationService implements UserDetailsService {
         account.setPhoneNumber(request.getPhoneNumber());
         account.setRole(request.getRole());
         Account newAccount = authenticationRepository.save(account);
-        // Tạo entity theo role
+
         if (request.getRole() != null) {
             switch (request.getRole()) {
-//                case MEMBER -> {
-//                    fu.se.myplatform.entity.Member member = new fu.se.myplatform.entity.Member();
-//                    member.setUser(newAccount);
-//                    member.setStatus(request.getStatus());
-//                    member.setIsVip(false);
-//                    member.setVipStartDate(null);
-//                    member.setVipExpiryDate(null);
-//                    memberRepository.save(member);
-//                }
+                case MEMBER -> {
+                    Member member = new Member();
+                    member.setUser(newAccount);
+                    member.setStatus(request.getStatus());
+                    member.setIsVip(false);
+                    member.setIsActived(true);  // Set isActived explicitly
+                    member.setVipStartDate(null);
+                    member.setVipExpiryDate(null);
+                    memberRepository.save(member);
+                }
                 case STAFF -> {
                     fu.se.myplatform.entity.Staff staff = new fu.se.myplatform.entity.Staff();
                     staff.setUser(newAccount);
@@ -301,48 +321,36 @@ public class AuthenticationService implements UserDetailsService {
                 throw new AccessDeniedException("Không có quyền xóa tài khoản");
             }
 
-            // Nếu là Member thì chỉ vô hiệu hóa tài khoản thay vì xóa
-            if (account.getRole() == Role.MEMBER) {
-                Member member = memberRepository.findByUser(account);
-                if (member != null) {
-                    member.setIsActived(false);
-                    member.setCoach(null);
-                    memberRepository.save(member);
-                }
-                return;
+            // 1. Xóa Member nếu có
+            Member member = memberRepository.findByUser(account);
+            if (member != null) {
+                memberRepository.delete(member);
+                memberRepository.flush();
             }
 
-            // 1. Xử lý tài khoản COACH
-            if (account.getRole() == Role.COACH) {
-                Coach coach = coachRepository.findByUser(account);
-                if (coach != null) {
-                    // Cập nhật tất cả member để remove coach
-                    List<Member> members = memberRepository.findAllByCoach(coach);
-                    for (Member m : members) {
-                        m.setCoach(null);
-                        memberRepository.save(m);
-                    }
-                    memberRepository.flush();
-                    coachRepository.delete(coach);
-                    coachRepository.flush();
-                }
+            // 2. Xóa Coach nếu có
+            Coach coach = coachRepository.findByUser(account);
+            if (coach != null) {
+                coachRepository.delete(coach);
+                coachRepository.flush();
             }
 
-            // 2. Xử lý tài khoản STAFF
-            if (account.getRole() == Role.STAFF) {
-                Staff staff = staffRepository.findByUser(account);
-                if (staff != null) {
-                    staffRepository.delete(staff);
-                    staffRepository.flush();
-                }
+            // 3. Xóa Staff nếu có
+            Staff staff = staffRepository.findByUser(account);
+            if (staff != null) {
+                staffRepository.delete(staff);
+                staffRepository.flush();
             }
 
-            // 3. Xóa tài khoản (chỉ xóa nếu không phải MEMBER)
+            // 4. Xóa Account
             authenticationRepository.delete(account);
             authenticationRepository.flush();
 
+            // 5. Ghi log
+            logEventService.logAccountDeletion(account.getEmail());
+
         } catch (Exception e) {
-            e.printStackTrace();
+            logEventService.logError("Lỗi khi xóa tài khoản ID " + userId, e.getMessage());
             throw new RuntimeException("Lỗi khi xóa tài khoản: " + e.getMessage());
         }
     }
@@ -352,17 +360,67 @@ public class AuthenticationService implements UserDetailsService {
         return  accountRepository.save(account);
     }
     public void forgotPassword(ForgotPasswordRequest forgotPasswordRequest) {
-        Account account = authenticationRepository.findAccountByEmail(forgotPasswordRequest.getEmail());
-        if (account == null) {
-            throw new AuthenticationException("User not found");
-        } else {
+        try {
+            Account account = authenticationRepository.findAccountByEmail(forgotPasswordRequest.getEmail());
+            if (account == null) {
+                throw new ResourceNotFoundException("Không tìm thấy tài khoản với email này");
+            }
 
+            String resetToken = tokenService.generateToken(account);
             EmailDetail emailDetail = new EmailDetail();
-            emailDetail.setRecipient(account.email);
-            emailDetail.setSubject("Forgot Password Request");
-            emailDetail.setLink("http://localhost:8080/reset-password?token=" + tokenService.generateToken(account));
-            emailService.sendMail(emailDetail);
+            emailDetail.setRecipient(account.getEmail());
+            emailDetail.setSubject("Yêu cầu đặt lại mật khẩu");
+            emailDetail.setLink("http://localhost:3000/reset-password?token=" + resetToken);
 
+            try {
+                emailService.sendMail(emailDetail);
+            } catch (Exception e) {
+                logEventService.logError("Lỗi gửi email đặt lại mật khẩu cho " + account.getEmail(), e.getMessage());
+                throw new RuntimeException("Không thể gửi email đặt lại mật khẩu. Vui lòng thử lại sau.");
+            }
+        } catch (ResourceNotFoundException e) {
+            throw e;
+        } catch (Exception e) {
+            logEventService.logError("Lỗi xử lý yêu cầu đặt lại mật khẩu", e.getMessage());
+            throw new RuntimeException("Đã xảy ra lỗi khi xử lý yêu cầu. Vui lòng thử lại sau.");
         }
+    }
+
+    public List<AccountResponse> getAccountsByRole(String role) {
+        Role roleEnum = Role.valueOf(role);
+        List<Account> accounts;
+
+        switch (roleEnum) {
+            case MEMBER:
+                accounts = accountRepository.findByRole(Role.MEMBER);
+                break;
+            case STAFF:
+                accounts = accountRepository.findByRole(Role.STAFF);
+                break;
+            case COACH:
+                accounts = accountRepository.findByRole(Role.COACH);
+                break;
+            default:
+                throw new BadRequestException("Invalid role");
+        }
+
+        return accounts.stream()
+                .map(account -> modelMapper.map(account, AccountResponse.class))
+                .toList();
+    }
+
+    /**
+     * Đếm số tài khoản theo role
+     */
+    public long countAccountsByRole(String role) {
+        return accountRepository.countByRole(Role.valueOf(role.toUpperCase()));
+    }
+
+    /**
+     * Đếm số tài khoản mới trong n ngày gần nhất
+     */
+    public long countNewUsersInLastDays(int days) {
+        LocalDateTime startDate = LocalDateTime.now().minusDays(days);
+        return accountRepository.countByCreatedAtAfter(startDate);
     }
 }

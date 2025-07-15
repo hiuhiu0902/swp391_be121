@@ -32,10 +32,21 @@ public class Coach {
     @JsonIgnore
     private List<Member> members = new ArrayList<>();
 
-    @OneToMany(mappedBy = "coach")
-    private List<Rating> ratings; // Ratings received by this coach
+    @OneToMany(mappedBy = "coach", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<Rating> ratings;
 
     @Lob
     private byte[] profileImage; // Coach avatar
 
+    @PreRemove
+    private void preRemove() {
+        // Remove coach reference from members before deleting coach
+        for(Member member : members) {
+            member.setCoach(null);
+        }
+        members.clear();
+
+        // Clear all ratings
+        ratings.clear();
+    }
 }

@@ -3,7 +3,9 @@ package fu.se.myplatform.api;
 import fu.se.myplatform.dto.AccountResponse;
 import fu.se.myplatform.dto.CreateAccountRequest;
 import fu.se.myplatform.service.AuthenticationService;
+import fu.se.myplatform.service.BlogService;
 import fu.se.myplatform.service.LogReportService;
+import fu.se.myplatform.service.QuitPlanService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -32,6 +34,12 @@ public class AdminReportAPI {
 
     @Autowired
     LogReportService logReportService;
+
+    @Autowired
+    QuitPlanService quitPlanService;
+
+    @Autowired
+    private BlogService blogService;
 
     // 2. Thống kê số lượt đăng nhập/đăng ký theo thời gian (giả sử đã có log)
     @GetMapping("/report/logins")
@@ -89,5 +97,80 @@ public class AdminReportAPI {
     public ResponseEntity<Void> deleteAccount(@PathVariable Long userId) {
         authenticationService.deleteAccount(userId);
         return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping("/accounts/members")
+    @Operation(summary = "Get all MEMBER accounts", description = "Get list of all accounts with MEMBER role")
+    @SecurityRequirement(name = "bearerAuth")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<List<AccountResponse>> getAllMemberAccounts() {
+        List<AccountResponse> accounts = authenticationService.getAccountsByRole("MEMBER");
+        return ResponseEntity.ok(accounts);
+    }
+
+    @GetMapping("/accounts/staff")
+    @Operation(summary = "Get all STAFF accounts", description = "Get list of all accounts with STAFF role")
+    @SecurityRequirement(name = "bearerAuth")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<List<AccountResponse>> getAllStaffAccounts() {
+        List<AccountResponse> accounts = authenticationService.getAccountsByRole("STAFF");
+        return ResponseEntity.ok(accounts);
+    }
+
+    @GetMapping("/accounts/coaches")
+    @Operation(summary = "Get all COACH accounts", description = "Get list of all accounts with COACH role")
+    @SecurityRequirement(name = "bearerAuth")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<List<AccountResponse>> getAllCoachAccounts() {
+        List<AccountResponse> accounts = authenticationService.getAccountsByRole("COACH");
+        return ResponseEntity.ok(accounts);
+    }
+
+    @GetMapping("/dashboard")
+    @Operation(summary = "Get admin dashboard statistics", description = "Get overview statistics for admin dashboard")
+    @SecurityRequirement(name = "bearerAuth")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<Map<String, Object>> getDashboardStats() {
+        Map<String, Object> stats = new HashMap<>();
+
+        // 1. User Statistics - Thống kê người dùng
+        Map<String, Object> userStats = new HashMap<>();
+        userStats.put("totalMembers", authenticationService.countAccountsByRole("MEMBER"));
+        userStats.put("totalStaff", authenticationService.countAccountsByRole("STAFF"));
+        userStats.put("totalCoaches", authenticationService.countAccountsByRole("COACH"));
+        userStats.put("newUsersThisWeek", authenticationService.countNewUsersInLastDays(7));
+        userStats.put("newUsersThisMonth", authenticationService.countNewUsersInLastDays(30));
+        stats.put("userStats", userStats);
+
+        // 2. System Activity - Hoạt động hệ thống
+        Map<String, Object> activityStats = new HashMap<>();
+        activityStats.put("totalLogins", logReportService.getLoginCount());
+        activityStats.put("totalRegistrations", logReportService.getRegisterCount());
+        activityStats.put("totalErrors", logReportService.getErrorCount());
+
+        // Thống kê theo thời gian
+        activityStats.put("loginLast7Days", logReportService.getLoginStatsByDay(7));
+        activityStats.put("loginLast30Days", logReportService.getLoginStatsByDay(30));
+        activityStats.put("registerLast7Days", logReportService.getRegistrationStatsByDay(7));
+        activityStats.put("registerLast30Days", logReportService.getRegistrationStatsByDay(30));
+
+        // Biểu đồ tăng trưởng theo tháng
+        activityStats.put("growthByMonth", logReportService.getRegistrationStatsByMonth(12));
+
+        stats.put("activityStats", activityStats);
+
+        // 3. Service Statistics - Thống kê dịch vụ
+        Map<String, Object> serviceStats = new HashMap<>();
+        serviceStats.put("activeQuitPlans", quitPlanService.countActivePlans());
+
+        // Blog statistics
+        Map<String, Object> blogStats = new HashMap<>();
+        blogStats.put("totalBlogs", blogService.countBlogs());
+        blogStats.put("blogsByCategory", blogService.countBlogsByCategory());
+        serviceStats.put("blogStats", blogStats);
+
+        stats.put("serviceStats", serviceStats);
+
+        return ResponseEntity.ok(stats);
     }
 }

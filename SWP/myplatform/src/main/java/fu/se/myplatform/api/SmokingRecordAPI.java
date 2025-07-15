@@ -8,11 +8,13 @@ import fu.se.myplatform.entity.SmokingRecord;
 import fu.se.myplatform.service.QuitPlanService;
 import fu.se.myplatform.service.SmokingRecordService;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -29,9 +31,9 @@ public class SmokingRecordAPI {
 
     @PostMapping("/record")
     public ResponseEntity<SmokingRecordResponse> recordSmokingData(
-            @RequestBody SmokingRecordRequest request,
+            @Valid @RequestBody SmokingRecordRequest request,
             @RequestParam(required = false) LocalDate date) {
-        SmokingRecord record = smokingRecordService.saveSmokingRecord(request, date != null ? date : LocalDate.now());
+        SmokingRecord record = smokingRecordService.saveSmokingRecord(request, date != null ? date : LocalDateTime.now().toLocalDate());
         SmokingRecordResponse response = new SmokingRecordResponse();
         response.setDate(record.getDate());
         response.setCigarettesSmoked(record.getCigarettesSmoked());
@@ -67,6 +69,9 @@ public class SmokingRecordAPI {
     public ResponseEntity<List<SmokingRecordResponse>> getRecordsByDateRange(
             @RequestParam LocalDate startDate,
             @RequestParam LocalDate endDate) {
+        if (startDate.isAfter(endDate)) {
+            return ResponseEntity.badRequest().body(null);
+        }
         List<SmokingRecord> records = smokingRecordService.getRecordsByDateRange(startDate, endDate);
         List<SmokingRecordResponse> responseList = records.stream()
             .map(record -> {
@@ -94,6 +99,10 @@ public class SmokingRecordAPI {
     public ResponseEntity<List<WeeklyProgressStats>> getAllWeeksProgress() {
         try {
             QuitPlan quitPlan = quitPlanService.getCurrentUserPlanEntity();
+            if (quitPlan == null) {
+                return ResponseEntity.badRequest().body(null);
+            }
+
             int totalWeeks = quitPlan.getTaperingSchedule().size() - 1;
             List<WeeklyProgressStats> allStats = new ArrayList<>();
             for (int week = 1; week <= totalWeeks; week++) {

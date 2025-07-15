@@ -1,7 +1,10 @@
 package fu.se.myplatform.repository;
 
 import fu.se.myplatform.entity.Account;
+import fu.se.myplatform.enums.Role;
 import org.springframework.data.jpa.repository.JpaRepository;
+
+import java.util.List;
 
 public interface AccountRepository extends JpaRepository<Account, Long> {
 
@@ -20,4 +23,22 @@ public interface AccountRepository extends JpaRepository<Account, Long> {
      */
     Account findByEmail(String email);
     Account findByUserName(String userName);
+
+    /**
+     * Finds all accounts with a specific role.
+     *
+     * @param role the role to search for
+     * @return list of accounts with the specified role
+     */
+    List<Account> findByRole(Role role);
+
+    /**
+     * Count accounts by role
+     */
+    long countByRole(Role role);
+
+    /**
+     * Count accounts created after a specific date
+     */
+    long countByCreatedAtAfter(java.time.LocalDateTime date);
 }
