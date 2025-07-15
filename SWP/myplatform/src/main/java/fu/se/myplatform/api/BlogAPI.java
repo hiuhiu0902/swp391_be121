@@ -4,6 +4,7 @@ import fu.se.myplatform.dto.BlogRequest;
 import fu.se.myplatform.dto.BlogResponse;
 import fu.se.myplatform.enums.BlogCategory;
 import fu.se.myplatform.service.BlogService;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -19,6 +20,9 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/blogs")
 @RequiredArgsConstructor
+@SecurityRequirement(
+        name = "api"
+)
 public class BlogAPI {
     private final BlogService blogService;
 
