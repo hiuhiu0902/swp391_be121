@@ -12,6 +12,5 @@ public class ChatMessageResponse {
     public boolean senderIsCoach; // true: coach gửi, false: member gửi
     public Long memberId;
     public Long coachId;
-    // Thêm tên người gửi nếu muốn hiển thị trên FE
-    public String senderName;
+    private String senderName;
 }

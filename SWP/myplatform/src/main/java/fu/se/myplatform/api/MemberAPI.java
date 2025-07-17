@@ -78,4 +78,15 @@ public class MemberAPI {
         return ResponseEntity.badRequest().body(e.getMessage());
     }
     }
+    // API để Member lấy thông tin Coach đã được phân cho mình dưới dạng CoachShortDTO
+    @GetMapping("/{memberId}/coach")
+    public ResponseEntity<CoachShortDTO> getAssignedCoach(@PathVariable Long memberId) {
+        try {
+            // Lấy thông tin Coach đã phân cho Member từ service
+            CoachShortDTO coachShortDTO = memberService.getAssignedCoach(memberId);
+            return ResponseEntity.ok(coachShortDTO);  // Trả về CoachShortDTO
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(new CoachShortDTO());  // Trả về lỗi nếu không có Coach
+        }
+    }
 }
