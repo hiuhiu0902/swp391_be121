@@ -45,6 +45,9 @@ public class  Account implements UserDetails {
     @org.hibernate.annotations.CreationTimestamp
     public LocalDateTime createdAt;
 
+    @Column(columnDefinition = "VARCHAR(MAX)")
+    private String avatarUrl;
+
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
         return List.of(new org.springframework.security.core.authority.SimpleGrantedAuthority("ROLE_" + this.role.name()));

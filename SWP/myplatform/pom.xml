@@ -143,6 +143,11 @@
             <artifactId>jira-rest-java-client-core</artifactId>
             <version>5.2.0</version> <!-- Cập nhật phiên bản ổn định hơn -->
         </dependency>
+        <dependency>
+            <groupId>com.cloudinary</groupId>
+            <artifactId>cloudinary-http44</artifactId>
+            <version>1.33.0</version>
+        </dependency>
 
     </dependencies>
 

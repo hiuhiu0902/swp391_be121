@@ -10,15 +10,13 @@ import fu.se.myplatform.service.BlogService;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Sort;
-import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/blogs")
@@ -87,33 +85,26 @@ public class BlogAPI {
      * @param search Tìm kiếm theo title hoặc content
      * @param category Lọc theo danh mục
      * @param featured Lọc bài viết nổi bật
-     * @param pageable Phân trang (page, size, sort)
      * @return Danh sách bài viết theo điều kiện, sắp xếp mới nhất lên đầu
      */
     @GetMapping
-    public ResponseEntity<Page<BlogResponse>> getAllBlogs(
+    public ResponseEntity<List<BlogResponse>> getAllBlogs(
             @RequestParam(required = false) String search,
             @RequestParam(required = false) BlogCategory category,
-            @RequestParam(required = false) Boolean featured,
-            @PageableDefault(size = 10, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
-        return ResponseEntity.ok(blogService.getAllBlogs(search, category, featured, pageable));
+            @RequestParam(required = false) Boolean featured) {
+        return ResponseEntity.ok(blogService.getAllBlogs(search, category, featured));
     }
 
     /**
-     * Xem danh sách bài viết của người dùng hiện tại
+     * Lấy danh sách bài viết của người dùng hiện tại
      * Role: STAFF, COACH, MEMBER, ADMIN
-     * @param search Tìm kiếm theo title hoặc content
-     * @param category Lọc theo danh mục
-     * @param pageable Phân trang (page, size, sort)
-     * @return Danh sách bài viết của người dùng
      */
     @GetMapping("/my-blogs")
     @PreAuthorize("hasAnyRole('STAFF', 'COACH', 'MEMBER', 'ADMIN')")
-    public ResponseEntity<Page<BlogResponse>> getMyBlogs(
+    public ResponseEntity<List<BlogResponse>> getMyBlogs(
             @RequestParam(required = false) String search,
-            @RequestParam(required = false) BlogCategory category,
-            Pageable pageable) {
-        return ResponseEntity.ok(blogService.getMyBlogs(search, category, pageable));
+            @RequestParam(required = false) BlogCategory category) {
+        return ResponseEntity.ok(blogService.getMyBlogs(search, category));
     }
 
     /**
@@ -129,20 +120,80 @@ public class BlogAPI {
     }
 
     /**
-     * Lấy danh sách bài viết với infinite scroll
+     * Search blogs - Tìm kiếm blog theo từ khóa và category
+     * Kết quả mặc định sắp xếp theo thời gian mới nhất
+     */
+    @GetMapping("/search")
+    public ResponseEntity<List<BlogResponse>> searchBlogs(
+            @RequestParam String keyword,
+            @RequestParam(required = false) BlogCategory category) {
+        return ResponseEntity.ok(blogService.getAllBlogs(keyword, category, null));
+    }
+
+    /**
+     * Lấy feed bài viết, sắp xếp theo mức độ tương tác
      * Public API - Không cần đăng nhập
-     * @param lastId ID của bài viết cuối cùng đã load (null nếu là load lần đầu)
-     * @param limit Số lượng bài viết muốn lấy (mặc định 10)
+     * @param page Số trang (bắt đầu từ 0)
+     * @param size Số lượng bài viết mỗi trang (mặc định 10)
      * @param category Lọc theo danh mục (optional)
      * @param featured Lọc bài viết nổi bật (optional)
-     * @return Danh sách bài viết mới, sắp xếp theo thời gian mới nhất
+     * @return Danh sách bài viết đã sắp xếp theo mức độ tương tác
      */
     @GetMapping("/feed")
-    public ResponseEntity<List<BlogResponse>> getBlogFeed(
-            @RequestParam(required = false) Long lastId,
-            @RequestParam(defaultValue = "10") int limit,
+    public ResponseEntity<Map<String, Object>> getBlogFeed(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
             @RequestParam(required = false) BlogCategory category,
             @RequestParam(required = false) Boolean featured) {
-        return ResponseEntity.ok(blogService.getBlogFeed(lastId, limit, category, featured));
+
+        return ResponseEntity.ok(blogService.getBlogFeed(category, page, size, featured));
     }
+
+    /**
+     * Like bài viết
+     * Role: STAFF, COACH, MEMBER, ADMIN
+     * @param id ID bài viết
+     * @return Thông tin bài viết sau khi được like
+     */
+    @PostMapping("/{id}/like")
+    @PreAuthorize("hasAnyRole('STAFF', 'COACH', 'MEMBER', 'ADMIN')")
+    public ResponseEntity<BlogResponse> likeBlog(@PathVariable Long id) {
+        return ResponseEntity.ok(blogService.likeBlog(id));
+    }
+
+    /**
+     * Unlike bài viết
+     * Role: STAFF, COACH, MEMBER, ADMIN
+     * @param id ID bài viết
+     * @return Thông tin bài viết sau khi bị unlike
+     */
+    @PostMapping("/{id}/unlike")
+    @PreAuthorize("hasAnyRole('STAFF', 'COACH', 'MEMBER', 'ADMIN')")
+    public ResponseEntity<BlogResponse> unlikeBlog(@PathVariable Long id) {
+        return ResponseEntity.ok(blogService.unlikeBlog(id));
+    }
+
+    /**
+     * Initialize columns - Khởi tạo các cột likes và view_count
+     * Role: ADMIN
+     */
+    @PostMapping("/initialize-columns")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<String> initializeColumns() {
+        blogService.initializeColumns();
+        return ResponseEntity.ok("Columns initialized successfully");
+    }
+
+    /**
+     * Upload ảnh cho blog
+     * Role: STAFF, COACH, MEMBER, ADMIN
+     * @param file File ảnh cần upload
+     * @return URL của ảnh trên Cloudinary
+     */
+//    @PostMapping("/upload-image")
+//    @PreAuthorize("hasAnyRole('STAFF', 'COACH', 'MEMBER', 'ADMIN')")
+//    public ResponseEntity<Map<String, String>> uploadImage(@RequestParam("file") MultipartFile file) {
+//        String imageUrl = blogService.uploadImage(file);
+//        return ResponseEntity.ok(Map.of("url", imageUrl));
+//    }
 }
