@@ -20,16 +20,6 @@ public class ChatAPI {
     @Autowired
     ChatMessageService chatMessageService;
 
-    @PostMapping("/send")
-    public ResponseEntity<?> sendMessage(@RequestBody ChatMessageRequest chatRequest) {
-        try {
-            ChatMessageResponse response = chatMessageService.saveMessage(chatRequest);
-            return ResponseEntity.ok(response);
-        } catch (Exception e) {
-            return ResponseEntity.badRequest().body(e.getMessage());
-        }
-    }
-
     @GetMapping("/history")
     public ResponseEntity<List<ChatMessageResponse>> getHistory(
             @RequestParam Long memberId, @RequestParam Long coachId
@@ -38,13 +28,13 @@ public class ChatAPI {
         return ResponseEntity.ok(messages);
     }
 
-    @GetMapping("/assignable-coaches")
+    @GetMapping("/assigned-coach")
     public ResponseEntity<List<UserBasicInfoResponse>> getAssignableCoaches(@RequestParam Long memberId) {
         List<UserBasicInfoResponse> list = chatMessageService.getAssignableCoaches(memberId);
         return ResponseEntity.ok(list);
     }
 
-    @GetMapping("/assignable-members")
+    @GetMapping("/assigned-members")
     public ResponseEntity<List<UserBasicInfoResponse>> getAssignableMembers(@RequestParam Long coachId) {
         List<UserBasicInfoResponse> list = chatMessageService.getAssignableMembers(coachId);
         return ResponseEntity.ok(list);

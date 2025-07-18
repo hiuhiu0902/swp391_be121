@@ -6,6 +6,9 @@ import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import lombok.Data;
 
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+
 @Data
 public class AccountResponse {
 
@@ -23,16 +26,21 @@ public class AccountResponse {
 
     public String token;
 
-    public java.time.LocalDateTime createdAt;
+    public LocalDateTime createdAt;
 
     // Thông tin riêng cho từng loại tài khoản, gom chung vào DTO này
     public Boolean isVip;
-    public java.time.LocalDate vipStartDate;
-    public java.time.LocalDate vipExpiryDate;
+    public LocalDate vipStartDate;
+    public LocalDate vipExpiryDate;
     public String memberStatus;
     public String staffPosition;
     public String staffStatus;
     public String coachAddress;
     public String coachStatus;
+
+
+    // Thêm memberId và coachId
+    public Long memberId;  // Member ID
+    public Long coachId;   // Coach ID
 
 }

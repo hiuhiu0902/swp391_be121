@@ -6,17 +6,23 @@ import fu.se.myplatform.service.AuthenticationService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import jakarta.validation.Valid;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 
 //@CrossOrigin(origins = "http://localhost:3000")
 @RestController()
 @RequestMapping("/api")
 public class AuthenticationAPI {
+    private static final Logger logger = LoggerFactory.getLogger(AuthenticationAPI.class);
+
 
     @Autowired
     AuthenticationService authenticationService;
@@ -25,8 +31,12 @@ public class AuthenticationAPI {
 
     @PostMapping("/register")
     public ResponseEntity register(@RequestBody Account account){
+        logger.info("Registering account for user: {}", account.getUsername());
+
         Account newAccount = authenticationService.register(account);
-        return ResponseEntity.ok(newAccount);
+        logger.info("Account registered successfully for user: {}", newAccount.getUsername());
+
+        return ResponseEntity.ok("Register Successfully");
     }
 
     @PostMapping("/login")

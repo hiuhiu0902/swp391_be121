@@ -96,4 +96,25 @@ public class MemberService {
         return memberRepository.findById(memberId)
                 .orElseThrow(() -> new AuthenticationException("Member not found"));
     }
+    public CoachShortDTO getAssignedCoach(Long memberId) {
+        // Tìm Member theo memberId
+        Member member = memberRepository.findById(memberId)
+                .orElseThrow(() -> new AuthenticationException("Member not found"));
+
+        // Lấy Coach đã được phân cho Member
+        Coach coach = member.getCoach();
+        if (coach == null) {
+            throw new AuthenticationException("No coach assigned to this member");
+        }
+
+        // Tạo đối tượng CoachShortDTO từ Coach
+        CoachShortDTO coachShortDTO = new CoachShortDTO();
+        coachShortDTO.setId(coach.getCoachId());
+        coachShortDTO.setName(coach.getUser().getFullName());  // Lấy full name từ Account của Coach
+        coachShortDTO.setAvatarUrl(coach.getProfileImage() != null
+                ? "/avatars/" + coach.getCoachId() + ".jpg" : null);  // Nếu có ảnh đại diện, trả về URL
+
+        return coachShortDTO;
+    }
+
 }

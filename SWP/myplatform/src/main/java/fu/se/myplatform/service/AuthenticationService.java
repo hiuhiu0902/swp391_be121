@@ -10,6 +10,8 @@ import fu.se.myplatform.exception.exception.AuthenticationException;
 import fu.se.myplatform.repository.AccountRepository;
 import fu.se.myplatform.repository.AuthenticationRepository;
 import org.modelmapper.ModelMapper;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -56,6 +58,9 @@ public class AuthenticationService implements UserDetailsService {
     fu.se.myplatform.repository.CoachRepository coachRepository;
     @Autowired
     LogEventService logEventService;
+
+    private static final Logger logger = LoggerFactory.getLogger(AuthenticationService.class);
+
     public Account register(Account account) {
         // Kiểm tra email đã tồn tại chưa
         if (authenticationRepository.findAccountByEmail(account.getEmail()) != null) {
@@ -65,6 +70,12 @@ public class AuthenticationService implements UserDetailsService {
         // Kiểm tra username đã tồn tại chưa
         if (authenticationRepository.findAccountByUserName(account.getUsername()) != null) {
             throw new BadRequestException("Tên đăng nhập đã được sử dụng");
+        }
+        if(account.getPhoneNumber() == null){
+            throw new AuthenticationException("Số điện thoại không được để trống");
+        }
+        if(account.getGender() == null){
+            throw new AuthenticationException("Giới tính không được để trống");
         }
 
         account.setPassword(passwordEncoder.encode(account.getPassword()));
@@ -109,13 +120,37 @@ public class AuthenticationService implements UserDetailsService {
         } catch (Exception e) {
             // Ghi log lỗi đăng nhập
             logEventService.logError("Login failed for user: " + loginRequest.getUserName(), e.getMessage());
-            System.out.println("Thông tin đăng nhập không chính xác");
+            logger.error("Login failed for user: {}", loginRequest.getUserName(), e);  // Sử dụng logger.error với stack trace
+
             throw new AuthenticationException("Invalid username or password");
         }
         Account account = authenticationRepository.findAccountByUserName(loginRequest.getUserName());
         // Ghi log đăng nhập thành công
         logEventService.logLogin(loginRequest.getUserName());
+        logger.info("User {} logged in successfully", loginRequest.getUserName());  // Ghi log đăng nhập thành công
         AccountResponse accountResponse = modelMapper.map(account, AccountResponse.class);
+        // Lấy thông tin Member hoặc Coach từ cơ sở dữ liệu
+        if (account.getRole() == Role.MEMBER) {
+            // Nếu là Member, lấy thông tin Member
+            Member member = memberRepository.findByUser(account);
+            accountResponse.setMemberId(member.getMemberId());
+            accountResponse.setIsVip(member.getIsVip());
+            accountResponse.setVipStartDate(member.getVipStartDate());
+            accountResponse.setVipExpiryDate(member.getVipExpiryDate());
+            accountResponse.setMemberStatus(member.getStatus());
+            if (member.getCoach() != null) {
+                // Nếu Member có Coach, lấy thông tin Coach
+                accountResponse.setCoachId(member.getCoach().getCoachId());
+                accountResponse.setCoachAddress(member.getCoach().getAddress());
+                accountResponse.setCoachStatus(member.getCoach().getStatus());
+            }
+        } else if (account.getRole() == Role.COACH) {
+            // Nếu là Coach, lấy thông tin Coach
+            Coach coach = coachRepository.findByUser(account);
+            accountResponse.setCoachId(coach.getCoachId());
+            accountResponse.setCoachAddress(coach.getAddress());
+            accountResponse.setCoachStatus(coach.getStatus());
+        }
         String token = tokenService.generateToken(account);
         accountResponse.setToken(token);
         return accountResponse;

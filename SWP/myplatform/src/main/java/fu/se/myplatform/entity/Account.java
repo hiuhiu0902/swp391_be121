@@ -3,6 +3,9 @@ package fu.se.myplatform.entity;
 import fu.se.myplatform.enums.Gender;
 import fu.se.myplatform.enums.Role;
 import jakarta.persistence.*;
+import jakarta.validation.constraints.Email;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
 import lombok.Getter;
 import lombok.Setter;
 import org.springframework.security.core.GrantedAuthority;
@@ -22,15 +25,18 @@ public class  Account implements UserDetails {
     public Long userId;
 
     @Column(name = "user_name", unique = true, nullable = false)
+    @Size(min = 4, message = "UserName phải có ít nhất 6 kí tự")
     public String userName;
 
+    @Column
+    @Size(min = 6, message = "Password phải ít nhất 6 kí tự")
     public String password;
 
     public String fullName;
 
     @Column(unique = true, nullable = false)
-    @jakarta.validation.constraints.Email(message = "Email không hợp lệ")
-    @jakarta.validation.constraints.NotBlank(message = "Email không được để trống")
+    @Email(message = "Email không hợp lệ")
+    @NotBlank(message = "Email không được để trống")
     public String email;
 
     public String phoneNumber;

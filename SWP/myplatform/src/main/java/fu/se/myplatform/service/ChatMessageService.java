@@ -45,6 +45,10 @@ public class ChatMessageService {
         chat.setCoach(coach);
 
         chat = chatMessageRepository.save(chat);
+        if (chat == null) {
+            throw new RuntimeException("Failed to save message.");
+        }
+
 
         ChatMessageResponse response = new ChatMessageResponse();
         response.setId(chat.getId());
