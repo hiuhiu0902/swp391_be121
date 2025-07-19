@@ -20,7 +20,7 @@ public class Blog {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false)
+    @Column(nullable = false, columnDefinition = "NVARCHAR(MAX)")
     private String title;
 
     @Column(columnDefinition = "TEXT", nullable = false)
@@ -49,9 +49,16 @@ public class Blog {
 
     private boolean isFeatured = false;  // Để đánh dấu bài viết nổi bật
 
-    private boolean allowComments = true; // Cho phép/tắt comment trên bài viết
+    @Column(nullable = false, columnDefinition = "bigint default 0")
+    private Long viewCount = 0L;
 
-    @OneToMany(mappedBy = "blog", cascade = CascadeType.ALL, orphanRemoval = true)
+    @Column(nullable = false, columnDefinition = "bigint default 0")
+    private Long likes = 0L;
+
+    @Column(nullable = false)
+    private boolean allowComments = true;
+
+    @OneToMany(mappedBy = "blog", cascade = CascadeType.ALL)
     private List<Comment> comments = new ArrayList<>();
 
     @PrePersist

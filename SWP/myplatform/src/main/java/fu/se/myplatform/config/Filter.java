@@ -105,9 +105,16 @@ public class Filter extends OncePerRequestFilter {
         }
     }
 
-    public String getToken(HttpServletRequest request) {
+    private String getToken(HttpServletRequest request) {
         String authHeader = request.getHeader("Authorization");
-        if (authHeader == null) return null;
+        return validateBearerToken(authHeader);
+    }
+
+    private String validateBearerToken(String authHeader) {
+        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+            return null;
+        }
+        // Trích xuất token từ header (bỏ đi "Bearer ")
         return authHeader.substring(7);
     }
 }

@@ -8,6 +8,8 @@ import org.hibernate.annotations.OnDelete;
 import org.hibernate.annotations.OnDeleteAction;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
 @Data
@@ -41,6 +43,16 @@ public class Comment {
     private LocalDateTime createdAt;
 
     private boolean isDeleted = false;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "parent_id")
+    private Comment parentComment;
+
+    @Column(name = "parent_id", insertable = false, updatable = false)
+    private Long parentId;
+
+    @OneToMany(mappedBy = "parentComment")
+    private List<Comment> replies = new ArrayList<>();
 
     @PrePersist
     protected void onCreate() {
