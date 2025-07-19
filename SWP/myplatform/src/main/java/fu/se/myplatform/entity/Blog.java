@@ -61,6 +61,9 @@ public class Blog {
     @OneToMany(mappedBy = "blog", cascade = CascadeType.ALL)
     private List<Comment> comments = new ArrayList<>();
 
+    @Column(columnDefinition = "VARCHAR(MAX)")
+    private String image;  // URL của ảnh blog trên Cloudinary
+
     @PrePersist
     protected void onCreate() {
         createdAt = LocalDateTime.now();

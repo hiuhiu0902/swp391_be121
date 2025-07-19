@@ -1,5 +1,8 @@
 package fu.se.myplatform.api;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import fu.se.myplatform.dto.BlogRequest;
 import fu.se.myplatform.dto.BlogResponse;
 import fu.se.myplatform.enums.BlogCategory;
@@ -7,9 +10,18 @@ import fu.se.myplatform.exception.BadRequestException;
 import fu.se.myplatform.exception.ForbiddenException;
 import fu.se.myplatform.exception.NotFoundException;
 import fu.se.myplatform.service.BlogService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import jakarta.validation.Valid;
+import lombok.AllArgsConstructor;
+import lombok.Getter;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -30,13 +42,59 @@ public class BlogAPI {
     /**
      * Tạo bài viết mới
      * Role: STAFF, COACH, MEMBER, ADMIN
-     * @param request Thông tin bài viết (title, content, thumbnail, category)
+     * Request body dạng form-data gồm các trường:
+     * - title: Tiêu đề bài viết
+     * - content: Nội dung bài viết
+     * - category: QUIT_JOURNEY
+     * - published: true/false
+     * - file: File ảnh cho blog
      * @return Thông tin bài viết đã tạo
      */
-    @PostMapping
+    @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @PreAuthorize("hasAnyRole('STAFF', 'COACH', 'MEMBER', 'ADMIN')")
-    public ResponseEntity<BlogResponse> createBlog(@Valid @RequestBody BlogRequest request) {
-        return ResponseEntity.ok(blogService.createBlog(request));
+    public ResponseEntity<?> createBlog(
+            @RequestParam("title") String title,
+            @RequestParam("content") String content,
+            @RequestParam("category") String category,
+            @RequestParam("published") Boolean published,
+            @RequestParam("file") MultipartFile file) {
+        try {
+            // Validate file first
+            if (file.isEmpty()) {
+                return ResponseEntity.badRequest().body(Map.of("error", "Vui lòng chọn ảnh cho bài viết"));
+            }
+
+            // Validate other fields
+            if (title == null || title.trim().isEmpty()) {
+                return ResponseEntity.badRequest().body(Map.of("error", "Vui lòng nhập tiêu đề bài viết"));
+            }
+            if (content == null || content.trim().isEmpty()) {
+                return ResponseEntity.badRequest().body(Map.of("error", "Vui lòng nhập nội dung bài viết"));
+            }
+            if (published == null) {
+                return ResponseEntity.badRequest().body(Map.of("error", "Vui lòng chọn trạng thái xuất bản"));
+            }
+
+            // Validate category
+            BlogCategory blogCategory;
+            try {
+                blogCategory = BlogCategory.valueOf(category.toUpperCase());
+            } catch (IllegalArgumentException e) {
+                return ResponseEntity.badRequest().body(Map.of("error",
+                    "Danh mục không hợp lệ. Các danh mục hợp lệ: QUIT_JOURNEY, SUCCESS_STORY, EXPERIENCE, MOTIVATION, CHALLENGE, LIFE_STORY"));
+            }
+
+            BlogRequest request = new BlogRequest();
+            request.setTitle(title);
+            request.setContent(content);
+            request.setCategory(blogCategory);
+            request.setPublished(published);
+
+            BlogResponse response = blogService.createBlog(request, file);
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("error", "Lỗi khi tạo blog: " + e.getMessage()));
+        }
     }
 
     /**
@@ -82,17 +140,17 @@ public class BlogAPI {
     /**
      * Tìm kiếm và lọc bài viết, mặc định sắp xếp theo thời gian mới nhất
      * Public API - Không cần đăng nhập
-     * @param search Tìm kiếm theo title hoặc content
+     * @param keyword Từ khóa tìm kiếm trong title hoặc content
      * @param category Lọc theo danh mục
      * @param featured Lọc bài viết nổi bật
      * @return Danh sách bài viết theo điều kiện, sắp xếp mới nhất lên đầu
      */
     @GetMapping
     public ResponseEntity<List<BlogResponse>> getAllBlogs(
-            @RequestParam(required = false) String search,
+            @RequestParam(required = false) String keyword,
             @RequestParam(required = false) BlogCategory category,
             @RequestParam(required = false) Boolean featured) {
-        return ResponseEntity.ok(blogService.getAllBlogs(search, category, featured));
+        return ResponseEntity.ok(blogService.getAllBlogs(keyword, category, featured));
     }
 
     /**
@@ -120,17 +178,6 @@ public class BlogAPI {
     }
 
     /**
-     * Search blogs - Tìm kiếm blog theo từ khóa và category
-     * Kết quả mặc định sắp xếp theo thời gian mới nhất
-     */
-    @GetMapping("/search")
-    public ResponseEntity<List<BlogResponse>> searchBlogs(
-            @RequestParam String keyword,
-            @RequestParam(required = false) BlogCategory category) {
-        return ResponseEntity.ok(blogService.getAllBlogs(keyword, category, null));
-    }
-
-    /**
      * Lấy feed bài viết, sắp xếp theo mức độ tương tác
      * Public API - Không cần đăng nhập
      * @param page Số trang (bắt đầu từ 0)
@@ -150,27 +197,23 @@ public class BlogAPI {
     }
 
     /**
-     * Like bài viết
+     * Toggle like bài viết (like/unlike)
      * Role: STAFF, COACH, MEMBER, ADMIN
+     * Hoạt động như nút like Facebook:
+     * - Click lần đầu: like (tăng count)
+     * - Click lần nữa: unlike (giảm count)
      * @param id ID bài viết
-     * @return Thông tin bài viết sau khi được like
+     * @return Thông tin bài viết sau khi toggle like
      */
-    @PostMapping("/{id}/like")
+    @PostMapping("/{id}/toggle-like")
     @PreAuthorize("hasAnyRole('STAFF', 'COACH', 'MEMBER', 'ADMIN')")
-    public ResponseEntity<BlogResponse> likeBlog(@PathVariable Long id) {
-        return ResponseEntity.ok(blogService.likeBlog(id));
-    }
-
-    /**
-     * Unlike bài viết
-     * Role: STAFF, COACH, MEMBER, ADMIN
-     * @param id ID bài viết
-     * @return Thông tin bài viết sau khi bị unlike
-     */
-    @PostMapping("/{id}/unlike")
-    @PreAuthorize("hasAnyRole('STAFF', 'COACH', 'MEMBER', 'ADMIN')")
-    public ResponseEntity<BlogResponse> unlikeBlog(@PathVariable Long id) {
-        return ResponseEntity.ok(blogService.unlikeBlog(id));
+    public ResponseEntity<?> toggleLikeBlog(@PathVariable Long id) {
+        try {
+            BlogResponse response = blogService.toggleLike(id);
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
     }
 
     /**
@@ -188,12 +231,62 @@ public class BlogAPI {
      * Upload ảnh cho blog
      * Role: STAFF, COACH, MEMBER, ADMIN
      * @param file File ảnh cần upload
+     * @param id ID của blog cần thêm ảnh
      * @return URL của ảnh trên Cloudinary
      */
-//    @PostMapping("/upload-image")
-//    @PreAuthorize("hasAnyRole('STAFF', 'COACH', 'MEMBER', 'ADMIN')")
-//    public ResponseEntity<Map<String, String>> uploadImage(@RequestParam("file") MultipartFile file) {
-//        String imageUrl = blogService.uploadImage(file);
-//        return ResponseEntity.ok(Map.of("url", imageUrl));
-//    }
+    @Operation(summary = "Upload ảnh cho blog",
+            description = "Upload ảnh cho một blog cụ thể. Ảnh sẽ được lưu trên Cloudinary.")
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "Upload thành công",
+                    content = {@Content(mediaType = "application/json",
+                    schema = @Schema(implementation = UploadResponse.class))}),
+        @ApiResponse(responseCode = "400", description = "Lỗi validation hoặc upload",
+                    content = {@Content(mediaType = "application/json",
+                    schema = @Schema(implementation = ErrorResponse.class))})
+    })
+    @PostMapping(value = "/{id}/upload-image", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PreAuthorize("hasAnyRole('STAFF', 'COACH', 'MEMBER', 'ADMIN')")
+    public ResponseEntity<Map<String, String>> uploadImage(
+            @Parameter(description = "ID của blog", required = true)
+            @PathVariable Long id,
+            @Parameter(description = "File ảnh cho blog (jpg, png, etc.)", required = true)
+            @RequestParam("file") MultipartFile file) {
+        String imageUrl = blogService.uploadImage(file, id);
+        return ResponseEntity.ok(Map.of("url", imageUrl));
+    }
+
+    /**
+     * Search blogs
+     * Tìm kiếm blog theo keyword và category
+     * @param keyword từ khóa tìm kiếm (không bắt buộc)
+     * @param category danh mục blog (không bắt buộc)
+     * @return danh sách blog tìm thấy
+     */
+    @GetMapping("/search")
+    public ResponseEntity<List<BlogResponse>> searchBlogs(
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) BlogCategory category) {
+        try {
+            List<BlogResponse> blogs = blogService.searchBlogs(keyword, category);
+            return ResponseEntity.ok(blogs);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(List.of());
+        }
+    }
+
+    @Schema(name = "UploadResponse")
+    private static class UploadResponse {
+        @Schema(example = "Upload ảnh thành công")
+        public String message;
+        @Schema(example = "https://cloudinary.com/...")
+        public String url;
+    }
+
+    @Schema(name = "ErrorResponse")
+    @Getter
+    @AllArgsConstructor
+    private static class ErrorResponse {
+        @Schema(example = "Lỗi khi upload ảnh")
+        private String message;
+    }
 }

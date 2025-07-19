@@ -15,6 +15,7 @@ public class BlogResponse {
     private String title;
     private String content;
     private String thumbnail;
+    private String image;  // URL của ảnh blog
     private Long userId;
     private String authorName;
     private LocalDateTime createdAt;
@@ -22,4 +23,6 @@ public class BlogResponse {
     private BlogCategory category;
     private boolean isPublished;
     private boolean isFeatured;
+    private Long likes = 0L;  // Số lượng like
+    private boolean isLiked;  // Trạng thái like của user hiện tại
 }

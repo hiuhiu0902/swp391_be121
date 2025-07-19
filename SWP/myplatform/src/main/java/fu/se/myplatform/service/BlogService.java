@@ -4,11 +4,13 @@ import fu.se.myplatform.dto.BlogRequest;
 import fu.se.myplatform.dto.BlogResponse;
 import fu.se.myplatform.entity.Account;
 import fu.se.myplatform.entity.Blog;
+import fu.se.myplatform.entity.BlogLike;
 import fu.se.myplatform.enums.BlogCategory;
 import fu.se.myplatform.enums.Role;
 import fu.se.myplatform.exception.ForbiddenException;
 import fu.se.myplatform.exception.NotFoundException;
 import fu.se.myplatform.repository.BlogRepository;
+import fu.se.myplatform.repository.BlogLikeRepository;
 import lombok.RequiredArgsConstructor;
 import org.modelmapper.ModelMapper;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -33,11 +35,12 @@ public class BlogService {
     private final BlogRepository blogRepository;
     private final AccountService accountService;
     private final ModelMapper modelMapper;
+    private final BlogLikeRepository blogLikeRepository;
     @Autowired
     private CloudinaryService cloudinaryService;
 
     @Transactional
-    public BlogResponse createBlog(BlogRequest request) {
+    public BlogResponse createBlog(BlogRequest request, MultipartFile file) {
         Account currentUser = accountService.getCurrentUser();
 
         Blog blog = new Blog();
@@ -47,6 +50,16 @@ public class BlogService {
         blog.setCategory(request.getCategory());
         blog.setUser(currentUser);
         blog.setPublished(request.isPublished());
+
+        // Upload ảnh nếu có và lưu URL vào blog
+        if (file != null && !file.isEmpty()) {
+            try {
+                String imageUrl = cloudinaryService.uploadBlogImage(file);
+                blog.setImage(imageUrl);
+            } catch (IOException e) {
+                throw new RuntimeException("Không thể upload ảnh: " + e.getMessage());
+            }
+        }
 
         return modelMapper.map(blogRepository.save(blog), BlogResponse.class);
     }
@@ -110,20 +123,34 @@ public class BlogService {
     }
 
     @Transactional(readOnly = true)
-    public List<BlogResponse> getAllBlogs(String search, BlogCategory category, Boolean featured) {
-        if (featured != null) {
-            return blogRepository.findBySearchCriteriaAndFeatured(search, category, featured)
-                    .stream()
-                    .map(blog -> modelMapper.map(blog, BlogResponse.class))
-                    .collect(Collectors.toList());
-        } else {
-            // Khi không có category được chọn, trả về tất cả blog
-            List<Blog> blogs = category != null ?
-                blogRepository.findBlogFeed(category.name(), 100, null) :
-                blogRepository.findBlogFeed(null, 100, null);
+    public List<BlogResponse> getAllBlogs(String keyword, BlogCategory category, Boolean featured) {
+        try {
+            Account currentUser = accountService.getCurrentUser();
+            List<Blog> blogs;
+            if (featured != null) {
+                blogs = blogRepository.findBySearchCriteriaAndFeatured(keyword, category, featured);
+            } else {
+                if (category != null) {
+                    blogs = blogRepository.findBlogFeed(category.name(), 100, null);
+                } else {
+                    blogs = blogRepository.findBlogFeed(null, 100, null);
+                }
+            }
+
             return blogs.stream()
-                    .map(blog -> modelMapper.map(blog, BlogResponse.class))
+                    .map(blog -> {
+                        BlogResponse response = modelMapper.map(blog, BlogResponse.class);
+                        response.setLikes(blog.getLikes());
+                        // Kiểm tra xem user hiện tại đã like bài viết này chưa
+                        if (currentUser != null) {
+                            response.setLiked(blogLikeRepository.existsByBlogIdAndUserId(blog.getId(), currentUser.getUserId()));
+                        }
+                        return response;
+                    })
                     .collect(Collectors.toList());
+        } catch (Exception e) {
+            e.printStackTrace();
+            return List.of();
         }
     }
 
@@ -144,25 +171,45 @@ public class BlogService {
     }
 
     public Map<String, Object> getBlogFeed(BlogCategory category, int page, int size, Boolean featured) {
-        // Tạo Pageable để phân trang
-        Pageable pageable = PageRequest.of(page, size);
+        try {
+            Account currentUser = accountService.getCurrentUser();
+            Pageable pageable = PageRequest.of(page, size);
 
-        // Lấy danh sách blog có phân trang
-        Page<Blog> blogPage = blogRepository.findBlogFeedPaged(
-                category != null ? category.name() : null,
-                featured,
-                pageable);
+            Page<Blog> blogPage = blogRepository.findBlogFeedPaged(
+                    category != null ? category.name() : null,
+                    featured,
+                    pageable);
 
-        Map<String, Object> response = new HashMap<>();
-        response.put("content", blogPage.getContent().stream()
-                .map(blog -> modelMapper.map(blog, BlogResponse.class))
-                .collect(Collectors.toList()));
-        response.put("currentPage", blogPage.getNumber());
-        response.put("totalItems", blogPage.getTotalElements());
-        response.put("totalPages", blogPage.getTotalPages());
-        response.put("hasNext", blogPage.hasNext());
+            List<BlogResponse> blogResponses = blogPage.getContent().stream()
+                    .map(blog -> {
+                        BlogResponse response = modelMapper.map(blog, BlogResponse.class);
+                        response.setLikes(blog.getLikes());
+                        // Kiểm tra xem user hiện tại đã like bài viết này chưa
+                        if (currentUser != null) {
+                            response.setLiked(blogLikeRepository.existsByBlogIdAndUserId(blog.getId(), currentUser.getUserId()));
+                        }
+                        return response;
+                    })
+                    .collect(Collectors.toList());
 
-        return response;
+            Map<String, Object> response = new HashMap<>();
+            response.put("content", blogResponses);
+            response.put("currentPage", blogPage.getNumber());
+            response.put("totalItems", blogPage.getTotalElements());
+            response.put("totalPages", blogPage.getTotalPages());
+            response.put("hasNext", blogPage.hasNext());
+
+            return response;
+        } catch (Exception e) {
+            e.printStackTrace();
+            return Map.of(
+                "content", List.of(),
+                "currentPage", 0,
+                "totalItems", 0,
+                "totalPages", 0,
+                "hasNext", false
+            );
+        }
     }
 
     public boolean isBlogOwner(Long blogId, String username) {
@@ -210,12 +257,33 @@ public class BlogService {
     }
 
     @Transactional
-    public void toggleLike(Long blogId) {
-        // Kiểm tra blog tồn tại
-        if (!blogRepository.existsById(blogId)) {
-            throw new NotFoundException("Blog not found");
+    public BlogResponse toggleLike(Long blogId) {
+        Blog blog = blogRepository.findById(blogId)
+                .orElseThrow(() -> new NotFoundException("Blog not found"));
+
+        Account currentUser = accountService.getCurrentUser();
+
+        // Kiểm tra xem user đã like blog này chưa
+        boolean hasLiked = blogLikeRepository.existsByBlogIdAndUserId(blogId, currentUser.getUserId());
+
+        if (hasLiked) {
+            // Nếu đã like thì unlike
+            blogLikeRepository.deleteByBlogIdAndUserId(blogId, currentUser.getUserId());
+            blog.setLikes(blog.getLikes() - 1);
+        } else {
+            // Nếu chưa like thì like
+            BlogLike blogLike = new BlogLike();
+            blogLike.setBlog(blog);
+            blogLike.setUser(currentUser);
+            blogLikeRepository.save(blogLike);
+            blog.setLikes(blog.getLikes() + 1);
         }
-        blogRepository.incrementLikes(blogId);
+
+        blog = blogRepository.save(blog);
+        BlogResponse response = modelMapper.map(blog, BlogResponse.class);
+        response.setLikes(blog.getLikes());
+        response.setLiked(!hasLiked); // Đảo ngược trạng thái like
+        return response;
     }
 
     public Map<String, Long> getBlogStats(BlogCategory category) {
@@ -268,14 +336,35 @@ public class BlogService {
         return blog.getLikes();
     }
 
-//    public String uploadImage(MultipartFile file) {
-//        try {
-//            Map<String, String> options = new HashMap<>();
-//            options.put("folder", "blogs");
-//            options.put("resource_type", "auto");
-//            return cloudinaryService.upload(file, options);
-//        } catch (IOException e) {
-//            throw new RuntimeException("Could not upload image", e);
-//        }
-//    }
+    /**
+     * Upload ảnh cho blog
+     * @param file File ảnh cần upload
+     * @param blogId ID của blog cần thêm ảnh
+     * @return URL của ảnh từ Cloudinary
+     */
+    @Transactional
+    public String uploadImage(MultipartFile file, Long blogId) {
+        try {
+            // Kiểm tra blog tồn tại
+            Blog blog = blogRepository.findById(blogId)
+                    .orElseThrow(() -> new NotFoundException("Blog not found"));
+
+            // Kiểm tra quyền - chỉ chủ sở hữu hoặc STAFF mới được upload
+            Account currentUser = accountService.getCurrentUser();
+            if (!currentUser.getRole().equals(Role.STAFF) && !blog.getUserId().equals(currentUser.getUserId())) {
+                throw new ForbiddenException("You don't have permission to update this blog");
+            }
+
+            // Upload ảnh lên Cloudinary
+            String imageUrl = cloudinaryService.uploadImage(file, "blogs");
+
+            // Cập nhật URL ảnh vào blog
+            blog.setImage(imageUrl);
+            blogRepository.save(blog);
+
+            return imageUrl;
+        } catch (IOException e) {
+            throw new RuntimeException("Không thể upload ảnh: " + e.getMessage());
+        }
+    }
 }

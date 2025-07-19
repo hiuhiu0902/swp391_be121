@@ -62,7 +62,7 @@ public class AvatarAPI {
             }
 
             // Upload to cloudinary with specific options
-            String imageUrl = cloudinaryService.uploadImage(file);
+            String imageUrl = cloudinaryService.uploadAvatar(file);
 
             // Update user avatar URL
             account.setAvatarUrl(imageUrl);
