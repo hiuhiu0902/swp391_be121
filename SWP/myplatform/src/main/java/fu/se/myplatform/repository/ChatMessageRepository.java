@@ -11,12 +11,14 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 public interface ChatMessageRepository extends JpaRepository<ChatMessage, Long> {
-    List<ChatMessage> findByMemberAndCoachOrderBySentAtAsc(Member member, Coach coach);
-    List<ChatMessage> findByMember_MemberIdAndCoach_CoachIdOrderBySentAtAsc(Long memberId, Long coachId);
+        // Tìm tất cả tin nhắn giữa member và coach theo ID
+        List<ChatMessage> findByMember_MemberIdAndCoach_CoachIdOrderBySentAtAsc(Long memberId, Long coachId);
 
-    // Thống kê: đếm tin nhắn của coach gửi ra trong ngày
-    long countByCoachAndSentAtBetween(Coach coach, LocalDateTime start, LocalDateTime end);
+        // Thống kê số lượng tin nhắn của coach trong một khoảng thời gian
+        long countByCoachAndSentAtBetween(Coach coach, LocalDateTime start, LocalDateTime end);
 
-    // Lấy tin nhắn mới nhất của coach với member
-    ChatMessage findTop1ByCoachAndMemberOrderBySentAtDesc(Coach coach, Member member);
+        // Lấy tin nhắn mới nhất của coach với member
+        ChatMessage findTop1ByCoachAndMemberOrderBySentAtDesc(Coach coach, Member member);
+
+
 }

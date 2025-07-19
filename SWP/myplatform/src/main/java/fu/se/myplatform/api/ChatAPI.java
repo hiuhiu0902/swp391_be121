@@ -20,14 +20,6 @@ public class ChatAPI {
     @Autowired
     ChatMessageService chatMessageService;
 
-    @GetMapping("/history")
-    public ResponseEntity<List<ChatMessageResponse>> getHistory(
-            @RequestParam Long memberId, @RequestParam Long coachId
-    ) {
-        List<ChatMessageResponse> messages = chatMessageService.getChatHistory(memberId, coachId);
-        return ResponseEntity.ok(messages);
-    }
-
     @GetMapping("/assigned-coach")
     public ResponseEntity<List<UserBasicInfoResponse>> getAssignableCoaches(@RequestParam Long memberId) {
         List<UserBasicInfoResponse> list = chatMessageService.getAssignableCoaches(memberId);

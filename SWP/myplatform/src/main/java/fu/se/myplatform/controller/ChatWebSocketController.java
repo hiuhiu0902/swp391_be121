@@ -20,7 +20,6 @@ public class ChatWebSocketController {
     @Autowired
     private SimpMessagingTemplate messagingTemplate;
 
-    // Gửi tin nhắn qua WebSocket
     @MessageMapping("/chat.sendMessage")
     public void sendMessage(@Payload ChatMessageRequest chatRequest) {
         try {
@@ -36,8 +35,10 @@ public class ChatWebSocketController {
 
             // Tạo topic theo memberId và coachId
             String topic = "/topic/chat." + response.getMemberId() + "." + response.getCoachId();
+            System.out.println("Sending message to topic: " + topic);
+            System.out.println("Message content: " + response.getContent());
 
-            // Gửi tin nhắn tới topic WebSocket
+            // Gửi tin nhắn mới tới topic WebSocket
             messagingTemplate.convertAndSend(topic, response);
 
         } catch (Exception e) {
@@ -47,29 +48,31 @@ public class ChatWebSocketController {
         }
     }
 
-    // Lịch sử chat (Lấy lịch sử giữa member và coach)
     @MessageMapping("/chat.history")
     public void sendChatHistory(@Payload ChatMessageRequest chatRequest) {
         try {
-            // Lấy lịch sử chat từ service
             List<ChatMessageResponse> chatHistory = chatMessageService.getChatHistory(chatRequest.getMemberId(), chatRequest.getCoachId());
 
-            // Kiểm tra nếu không có lịch sử chat
             if (chatHistory.isEmpty()) {
+                System.out.println("No chat history available for member: " + chatRequest.getMemberId());
                 messagingTemplate.convertAndSend("/topic/chat." + chatRequest.getMemberId() + "." + chatRequest.getCoachId(), "No chat history available.");
                 return;
             }
 
-            // Gửi lại lịch sử chat qua WebSocket
             String topic = "/topic/chat." + chatRequest.getMemberId() + "." + chatRequest.getCoachId();
-            chatHistory.forEach(response -> messagingTemplate.convertAndSend(topic, response));
+
+            // Gửi lịch sử chat chỉ khi người dùng yêu cầu
+            chatHistory.forEach(response -> {
+                messagingTemplate.convertAndSend(topic, response);
+            });
 
         } catch (Exception e) {
-            // Xử lý lỗi và gửi thông báo lỗi qua WebSocket
             e.printStackTrace();
             messagingTemplate.convertAndSend("/topic/chat." + chatRequest.getMemberId() + "." + chatRequest.getCoachId(), "Error occurred while retrieving chat history.");
         }
     }
+
+
 }
 
 
