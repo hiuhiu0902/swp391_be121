@@ -35,7 +35,7 @@ public class Member {
     @Column(name = "is_actived")
     private Boolean isActived = true; // Set default value to true
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "coach_id")
     private Coach coach;
     // Ảnh đại diện (có thể giữ lại profileImage, hoặc thêm avatarUrl nếu lưu ngoài server)
