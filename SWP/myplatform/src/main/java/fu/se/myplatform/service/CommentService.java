@@ -1,5 +1,6 @@
 package fu.se.myplatform.service;
 
+import fu.se.myplatform.dto.BlogResponse;
 import fu.se.myplatform.dto.CommentRequest;
 import fu.se.myplatform.dto.CommentResponse;
 import fu.se.myplatform.entity.Account;
@@ -12,6 +13,7 @@ import fu.se.myplatform.exception.NotFoundException;
 import fu.se.myplatform.repository.BlogRepository;
 import fu.se.myplatform.repository.CommentRepository;
 import lombok.RequiredArgsConstructor;
+import org.modelmapper.ModelMapper;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -29,6 +31,7 @@ public class CommentService {
     private final BlogRepository blogRepository;
     private final AccountService accountService;
     private final ModerationService moderationService;
+    private final ModelMapper modelMapper;
 
     @Transactional
     public CommentResponse addComment(Long blogId, CommentRequest request) {
@@ -49,11 +52,18 @@ public class CommentService {
         comment.setContent(request.getContent());  // Bỏ phần xử lý UTF-8
         comment.setBlog(blog);
         comment.setUser(currentUser);
-
         Comment savedComment = commentRepository.save(comment);
 
         CommentResponse response = new CommentResponse();
         response.setId(savedComment.getId());
+        try {
+            String title = request.getContent();
+            if (title != null) {
+                comment.setContent(new String(title.getBytes("UTF-8"), "UTF-8"));
+            }
+        } catch (Exception e) {
+            comment.setContent(request.getContent());
+        }
         response.setContent(savedComment.getContent());
         response.setBlogId(savedComment.getBlogId());
         response.setUserId(savedComment.getUserId());
@@ -243,6 +253,20 @@ public class CommentService {
             );
         }
 
+        return response;
+    }
+
+    private CommentResponse convertToResponse(Comment comment) {
+        CommentResponse response = modelMapper.map(comment, CommentResponse.class);
+        try {
+            String title = comment.getContent();
+            if (title != null) {
+                response.setContent(new String(title.getBytes(), "UTF-8"));
+            }
+        } catch (Exception e) {
+            // Giữ nguyên title nếu có lỗi
+        }
+        response.setUserName(comment.getUser().getUsername());
         return response;
     }
 }

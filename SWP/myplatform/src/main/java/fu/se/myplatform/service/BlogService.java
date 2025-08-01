@@ -39,12 +39,32 @@ public class BlogService {
     @Autowired
     private CloudinaryService cloudinaryService;
 
+    private BlogResponse convertToResponse(Blog blog) {
+        BlogResponse response = modelMapper.map(blog, BlogResponse.class);
+        try {
+            String title = blog.getTitle();
+            if (title != null) {
+                response.setTitle(new String(title.getBytes(), "UTF-8"));
+            }
+        } catch (Exception e) {
+            // Giữ nguyên title nếu có lỗi
+        }
+        response.setUserName(blog.getUser().getUsername());
+        return response;
+    }
+
     @Transactional
     public BlogResponse createBlog(BlogRequest request, MultipartFile file) {
         Account currentUser = accountService.getCurrentUser();
-
         Blog blog = new Blog();
-        blog.setTitle(request.getTitle());
+        try {
+            String title = request.getTitle();
+            if (title != null) {
+                blog.setTitle(new String(title.getBytes("UTF-8"), "UTF-8"));
+            }
+        } catch (Exception e) {
+            blog.setTitle(request.getTitle());
+        }
         blog.setContent(request.getContent());
         blog.setThumbnail(request.getThumbnail());
         blog.setCategory(request.getCategory());
@@ -69,19 +89,26 @@ public class BlogService {
         Blog blog = blogRepository.findById(id)
                 .orElseThrow(() -> new NotFoundException("Blog not found"));
 
-        // Chỉ cho phép Staff hoặc chính người tạo sửa bài viết
         Account currentUser = accountService.getCurrentUser();
         if (!currentUser.getRole().equals(Role.STAFF) && !blog.getUserId().equals(currentUser.getUserId())) {
             throw new ForbiddenException("You don't have permission to update this blog");
         }
 
-        blog.setTitle(request.getTitle());
+        try {
+            String title = request.getTitle();
+            if (title != null) {
+                blog.setTitle(new String(title.getBytes("UTF-8"), "UTF-8"));
+            }
+        } catch (Exception e) {
+            blog.setTitle(request.getTitle());
+        }
+
         blog.setContent(request.getContent());
         blog.setThumbnail(request.getThumbnail());
         blog.setCategory(request.getCategory());
         blog.setPublished(request.isPublished());
 
-        return modelMapper.map(blogRepository.save(blog), BlogResponse.class);
+        return convertToResponse(blogRepository.save(blog));
     }
 
     @Transactional
@@ -117,10 +144,25 @@ public class BlogService {
     public BlogResponse getBlog(Long id) {
         Blog blog = blogRepository.findById(id)
                 .orElseThrow(() -> new NotFoundException("Blog not found"));
+
         // Tăng view count khi có người xem blog
         blogRepository.incrementViewCount(id);
-        return modelMapper.map(blog, BlogResponse.class);
+
+        // Manual mapping
+        BlogResponse response = new BlogResponse();
+        response.setId(blog.getId());
+        response.setTitle(blog.getTitle());
+        response.setContent(blog.getContent());
+        response.setUserName(blog.getUser().getUsername());
+        response.setCreatedAt(blog.getCreatedAt());
+        response.setUpdatedAt(blog.getUpdatedAt());
+        response.setImage(blog.getImage());
+        response.setAvatarUrl(blog.getUser().getAvatarUrl());
+        response.setCategory(blog.getCategory());
+// Vì view count sẽ tăng sau khi gọi increment
+        return response;
     }
+
 
     @Transactional(readOnly = true)
     public List<BlogResponse> getAllBlogs(String keyword, BlogCategory category, Boolean featured) {
@@ -184,6 +226,7 @@ public class BlogService {
                     .map(blog -> {
                         BlogResponse response = modelMapper.map(blog, BlogResponse.class);
                         response.setLikes(blog.getLikes());
+                        response.setAvatarUrl(blog.getUser().getAvatarUrl());
                         // Kiểm tra xem user hiện tại đã like bài viết này chưa
                         if (currentUser != null) {
                             response.setLiked(blogLikeRepository.existsByBlogIdAndUserId(blog.getId(), currentUser.getUserId()));
@@ -203,11 +246,11 @@ public class BlogService {
         } catch (Exception e) {
             e.printStackTrace();
             return Map.of(
-                "content", List.of(),
-                "currentPage", 0,
-                "totalItems", 0,
-                "totalPages", 0,
-                "hasNext", false
+                    "content", List.of(),
+                    "currentPage", 0,
+                    "totalItems", 0,
+                    "totalPages", 0,
+                    "hasNext", false
             );
         }
     }
@@ -243,9 +286,22 @@ public class BlogService {
     public List<BlogResponse> searchBlogs(String keyword, BlogCategory category) {
         return blogRepository.findBySearchCriteriaAndFeatured(keyword, category, null)
                 .stream()
-                .map(blog -> modelMapper.map(blog, BlogResponse.class))
+                .map(blog -> {
+                    BlogResponse response = new BlogResponse();
+                    response.setId(blog.getId());
+                    response.setTitle(blog.getTitle());
+                    response.setContent(blog.getContent());
+                    response.setUserName(blog.getUser().getUsername());
+                    response.setAvatarUrl(blog.getUser().getAvatarUrl());
+                    response.setCategory(blog.getCategory());
+                    response.setCreatedAt(blog.getCreatedAt());
+                    response.setUpdatedAt(blog.getUpdatedAt());
+                    // Add any other necessary field mappings here
+                    return response;
+                })
                 .collect(Collectors.toList());
     }
+
 
     @Transactional
     public void incrementViewCount(Long blogId) {
@@ -366,5 +422,19 @@ public class BlogService {
         } catch (IOException e) {
             throw new RuntimeException("Không thể upload ảnh: " + e.getMessage());
         }
+    }
+
+    @Transactional
+    public void softDeleteBlog(Long id) {
+        Blog blog = blogRepository.findById(id)
+                .orElseThrow(() -> new NotFoundException("Blog not found"));
+
+        // Kiểm tra người dùng hiện tại có role STAFF
+        Account currentUser = accountService.getCurrentUser();
+        if (!currentUser.getRole().equals(Role.STAFF)) {
+            throw new ForbiddenException("Only STAFF can soft delete blogs");
+        }
+
+        blogRepository.setPublishedFalse(id);
     }
 }

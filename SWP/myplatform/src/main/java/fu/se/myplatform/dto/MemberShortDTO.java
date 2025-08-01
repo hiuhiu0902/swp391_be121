@@ -7,4 +7,6 @@ public class MemberShortDTO {
     private Long memberId;
     private String fullName;
     private String status;
+    private Long userId;
+    private String avatarUrl;
 }

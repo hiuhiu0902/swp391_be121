@@ -47,6 +47,8 @@ public class  Account implements UserDetails {
     @Enumerated(EnumType.STRING)
     public Gender gender;
 
+    public boolean isActive = true;
+
     @Column(name = "created_at", updatable = false)
     @org.hibernate.annotations.CreationTimestamp
     public LocalDateTime createdAt;
