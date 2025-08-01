@@ -18,6 +18,7 @@ import java.util.List;
 @Getter
 @Setter
 @Entity
+@Table(name = "accounts")
 public class  Account implements UserDetails {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -53,7 +54,7 @@ public class  Account implements UserDetails {
     @org.hibernate.annotations.CreationTimestamp
     public LocalDateTime createdAt;
 
-    @Column(columnDefinition = "VARCHAR(MAX)")
+//    @Column(columnDefinition = "VARCHAR(MAX)")
     private String avatarUrl;
 
     @Override
