@@ -1,14 +1,11 @@
 package fu.se.myplatform.entity;
 
 import fu.se.myplatform.dto.TaperingStep;
-import fu.se.myplatform.enums.PlanStatus;
-import fu.se.myplatform.enums.QuitReason;
-import fu.se.myplatform.enums.SupportMethod;
-import fu.se.myplatform.enums.Triggers;
+import fu.se.myplatform.enums.*;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
-import fu.se.myplatform.enums.QuitPlanStatus;
+
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.ArrayList;
@@ -57,6 +54,12 @@ public class QuitPlan {
     private BigDecimal weeklyCost;
     private BigDecimal monthlyCost;
     private BigDecimal yearlyCost;
+    // Thêm quan hệ với Assessment
+    @OneToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "assessment_id", referencedColumnName = "id")
+    private Assessment assessment;
+
+    private int durationWeeks;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "status", columnDefinition = "varchar(255) default 'ACTIVE'")
@@ -71,6 +74,7 @@ public class QuitPlan {
         name = "plan_tapering_steps",
         joinColumns = @JoinColumn(name = "plan_id")
     )
+
     private List<TaperingStep> taperingSchedule = new ArrayList<>();
 
     @OneToMany(

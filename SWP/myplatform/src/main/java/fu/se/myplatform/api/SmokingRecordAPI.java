@@ -13,6 +13,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -33,24 +34,63 @@ public class SmokingRecordAPI {
     public ResponseEntity<SmokingRecordResponse> recordSmokingData(
             @Valid @RequestBody SmokingRecordRequest request,
             @RequestParam(required = false) LocalDate date) {
-        SmokingRecord record = smokingRecordService.saveSmokingRecord(request, date != null ? date : LocalDateTime.now().toLocalDate());
+        LocalDate recordDate = date != null ? date : LocalDateTime.now().toLocalDate();
+
+        // Lấy record hiện tại của ngày (nếu có)
+        SmokingRecord existingRecord = smokingRecordService.getRecordByDate(recordDate);
+
+        // Nếu đã có record cho ngày này, cộng thêm số điếu mới
+        if (existingRecord != null) {
+            request.setCigarettesSmoked(request.getCigarettesSmoked() + existingRecord.getCigarettesSmoked());
+        }
+
+        SmokingRecord record = smokingRecordService.saveSmokingRecord(request, recordDate);
         SmokingRecordResponse response = new SmokingRecordResponse();
         response.setDate(record.getDate());
         response.setCigarettesSmoked(record.getCigarettesSmoked());
 
-        // Thêm thông báo dựa vào so sánh với mục tiêu
+        // Thêm thông báo dựa vào so sánh với số điếu ban đầu
         QuitPlan plan = quitPlanService.getCurrentUserPlanEntity();
-        int targetForWeek = smokingRecordService.getTargetForDate(record.getDate(), plan);
-        if (record.getCigarettesSmoked() > targetForWeek) {
-            response.setMessage("Bạn đã hút vượt quá mục tiêu của ngày hôm nay!");
-        } else if (record.getCigarettesSmoked() == targetForWeek) {
-            response.setMessage("Tuyệt vời! Bạn đã đạt đúng mục tiêu của ngày hôm nay.");
+        int initialCigarettesPerDay = plan.getCigarettesPerDay();
+
+        // Tính tiền tiết kiệm được
+        int savedCigarettes = initialCigarettesPerDay - record.getCigarettesSmoked();
+        if (savedCigarettes > 0) {
+            // Tính giá một điếu thuốc = giá gói / 20 điếu
+            BigDecimal pricePerCigarette = plan.getPricePerPack()
+                .divide(BigDecimal.valueOf(20), 2, java.math.RoundingMode.HALF_UP);
+
+            // Tính tiền tiết kiệm được hôm nay
+            BigDecimal moneySavedToday = pricePerCigarette.multiply(BigDecimal.valueOf(savedCigarettes));
+            response.setMoneySaved(moneySavedToday);
+            
+            // Tính tổng tiền tiết kiệm được từ trước đến nay
+            LocalDate startDate = plan.getStartDate();
+            List<SmokingRecord> allRecords = smokingRecordService.getRecordsByDateRange(startDate, recordDate);
+            BigDecimal totalMoneySaved = allRecords.stream()
+                .map(r -> {
+                    int dailySaved = initialCigarettesPerDay - r.getCigarettesSmoked();
+                    return dailySaved > 0 ?
+                        pricePerCigarette.multiply(BigDecimal.valueOf(dailySaved)) : 
+                        BigDecimal.ZERO;
+                })
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+            response.setTotalMoneySaved(totalMoneySaved);
         } else {
-            response.setMessage("Xuất sắc! Bạn đã hút ít hơn mục tiêu đề ra.");
+            response.setMoneySaved(BigDecimal.ZERO);
+            response.setTotalMoneySaved(BigDecimal.ZERO);
+        }
+
+        if (record.getCigarettesSmoked() > initialCigarettesPerDay) {
+            response.setMessage("Bạn đã hút vượt quá số điếu hút ban đầu của bạn!");
+        } else if (record.getCigarettesSmoked() == initialCigarettesPerDay) {
+            response.setMessage("Hôm nay bạn hút bằng với số điếu ban đầu.");
+        } else {
+            response.setMessage("Xuất sắc! Bạn đã hút ít hơn số điếu ban đầu và tiết kiệm được "
+                + String.format("%,.0f", response.getMoneySaved().doubleValue()) + " VNĐ!");
         }
         return ResponseEntity.ok(response);
     }
-
 
     @GetMapping("/date/{date}")
     public ResponseEntity<SmokingRecordResponse> getRecordByDate(
@@ -62,6 +102,36 @@ public class SmokingRecordAPI {
         SmokingRecordResponse response = new SmokingRecordResponse();
         response.setDate(record.getDate());
         response.setCigarettesSmoked(record.getCigarettesSmoked());
+
+        // Tính tiền tiết kiệm được
+        QuitPlan plan = quitPlanService.getCurrentUserPlanEntity();
+        int initialCigarettesPerDay = plan.getCigarettesPerDay();
+        int savedCigarettes = initialCigarettesPerDay - record.getCigarettesSmoked();
+
+        if (savedCigarettes > 0) {
+            BigDecimal pricePerCigarette = plan.getPricePerPack()
+                .divide(BigDecimal.valueOf(20), 2, java.math.RoundingMode.HALF_UP);
+
+            BigDecimal moneySavedToday = pricePerCigarette.multiply(BigDecimal.valueOf(savedCigarettes));
+            response.setMoneySaved(moneySavedToday);
+
+            // Tính tổng tiền tiết kiệm được đến ngày này
+            LocalDate startDate = plan.getStartDate();
+            List<SmokingRecord> allRecords = smokingRecordService.getRecordsByDateRange(startDate, date);
+            BigDecimal totalMoneySaved = allRecords.stream()
+                .map(r -> {
+                    int dailySaved = initialCigarettesPerDay - r.getCigarettesSmoked();
+                    return dailySaved > 0 ?
+                        pricePerCigarette.multiply(BigDecimal.valueOf(dailySaved)) :
+                        BigDecimal.ZERO;
+                })
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+            response.setTotalMoneySaved(totalMoneySaved);
+        } else {
+            response.setMoneySaved(BigDecimal.ZERO);
+            response.setTotalMoneySaved(BigDecimal.ZERO);
+        }
+
         return ResponseEntity.ok(response);
     }
 
@@ -73,11 +143,39 @@ public class SmokingRecordAPI {
             return ResponseEntity.badRequest().body(null);
         }
         List<SmokingRecord> records = smokingRecordService.getRecordsByDateRange(startDate, endDate);
+        QuitPlan plan = quitPlanService.getCurrentUserPlanEntity();
+
+        BigDecimal pricePerCigarette = plan.getPricePerPack()
+            .divide(BigDecimal.valueOf(20), 2, java.math.RoundingMode.HALF_UP);
+
         List<SmokingRecordResponse> responseList = records.stream()
             .map(record -> {
                 SmokingRecordResponse res = new SmokingRecordResponse();
                 res.setDate(record.getDate());
                 res.setCigarettesSmoked(record.getCigarettesSmoked());
+
+                // Tính tiền tiết kiệm được cho từng ngày
+                int initialCigarettesPerDay = plan.getCigarettesPerDay();
+                int savedCigarettes = initialCigarettesPerDay - record.getCigarettesSmoked();
+                if (savedCigarettes > 0) {
+                    BigDecimal moneySavedToday = pricePerCigarette.multiply(BigDecimal.valueOf(savedCigarettes));
+                    res.setMoneySaved(moneySavedToday);
+
+                    // Tính tổng tiền tiết kiệm được đến ngày này
+                    List<SmokingRecord> recordsToDate = smokingRecordService.getRecordsByDateRange(plan.getStartDate(), record.getDate());
+                    BigDecimal totalMoneySaved = recordsToDate.stream()
+                        .map(r -> {
+                            int dailySaved = initialCigarettesPerDay - r.getCigarettesSmoked();
+                            return dailySaved > 0 ?
+                                pricePerCigarette.multiply(BigDecimal.valueOf(dailySaved)) :
+                                BigDecimal.ZERO;
+                        })
+                        .reduce(BigDecimal.ZERO, BigDecimal::add);
+                    res.setTotalMoneySaved(totalMoneySaved);
+                } else {
+                    res.setMoneySaved(BigDecimal.ZERO);
+                    res.setTotalMoneySaved(BigDecimal.ZERO);
+                }
                 return res;
             })
             .collect(Collectors.toList());
@@ -111,6 +209,18 @@ public class SmokingRecordAPI {
             return ResponseEntity.ok(allStats);
         } catch (Exception e) {
             return ResponseEntity.badRequest().build();
+        }
+    }
+
+    @DeleteMapping("/delete/{date}")
+    public ResponseEntity<?> deleteRecord(@RequestParam(required = false) String date) {
+        try {
+            LocalDate localDate = LocalDateTime.now().toLocalDate(); // Chuyển string thành LocalDate
+            smokingRecordService.deleteRecord(localDate);
+            return ResponseEntity.ok("Đã xóa record ngày " + localDate + " thành công");
+        } catch (Exception e) {
+            return ResponseEntity.badRequest()
+                .body("Không thể xóa record. Lỗi: " + e.getMessage());
         }
     }
 }

@@ -2,6 +2,8 @@ package fu.se.myplatform.api;
 
 import fu.se.myplatform.dto.QuitPlanRequest;
 import fu.se.myplatform.dto.QuitPlanResponse;
+import fu.se.myplatform.dto.SystemPlanRequestDTO;
+import fu.se.myplatform.dto.UserPlanRequestDTO;
 import fu.se.myplatform.repository.QuitPlanRepository;
 import fu.se.myplatform.service.QuitPlanService;
 import fu.se.myplatform.exception.BadRequestException;
@@ -18,18 +20,30 @@ public class QuitPlanAPI {
     @Autowired
     private QuitPlanService quitPlanService;
 
-    @PostMapping("/plans")
-    public ResponseEntity<?> createPlan(@RequestBody QuitPlanRequest planRequest) {
+    @PostMapping("/system-generated")
+    public ResponseEntity<?> createSystemPlan(@RequestBody SystemPlanRequestDTO request) {
         try {
-            QuitPlanResponse response = quitPlanService.createPlan(planRequest);
-            return ResponseEntity.ok(response);
+            return ResponseEntity.ok(quitPlanService.createSystemGeneratedPlan(request));
         } catch (MyException e) {
             return ResponseEntity.badRequest().body(e.getMessage());
         } catch (Exception e) {
-            return ResponseEntity.internalServerError().body("Đã xảy ra lỗi khi tạo kế hoạch, vui lòng thử lại sau");
+            return ResponseEntity.internalServerError().body("Lỗi khi tạo kế hoạch theo hệ thống.");
         }
     }
 
+    /**
+     * API để tạo kế hoạch do người dùng tùy chỉnh.
+     */
+    @PostMapping("/user-defined")
+    public ResponseEntity<?> createUserPlan(@RequestBody UserPlanRequestDTO request) {
+        try {
+            return ResponseEntity.ok(quitPlanService.createUserDefinedPlan(request));
+        } catch (MyException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError().body("Lỗi khi tạo kế hoạch tùy chỉnh.");
+        }
+    }
     @GetMapping("/plans")
     public ResponseEntity<?> viewPlan() {
         try {

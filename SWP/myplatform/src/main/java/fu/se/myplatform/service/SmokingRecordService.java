@@ -176,4 +176,11 @@ public class SmokingRecordService {
 
         return stats;
     }
+
+    public void deleteRecord(LocalDate date) {
+        Account account = authenticationService.getCurrentAccount();
+        SmokingRecord record = smokingRecordRepository.findByAccountAndDate(account, date)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy record cho ngày " + date));
+        smokingRecordRepository.delete(record);
+    }
 }

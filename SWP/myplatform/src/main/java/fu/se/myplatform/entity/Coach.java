@@ -35,6 +35,7 @@ public class Coach {
     @OneToMany(mappedBy = "coach", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<Rating> ratings;
 
+
     @Lob
     private byte[] profileImage; // Coach avatar
 

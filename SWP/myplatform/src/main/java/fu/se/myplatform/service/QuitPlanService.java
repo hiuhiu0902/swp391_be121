@@ -1,14 +1,14 @@
 package fu.se.myplatform.service;
 
-import fu.se.myplatform.dto.QuitPlanRequest;
-import fu.se.myplatform.dto.QuitPlanResponse;
-import fu.se.myplatform.dto.TaperingStep;
+import fu.se.myplatform.dto.*;
 import fu.se.myplatform.entity.Account;
+import fu.se.myplatform.entity.Assessment;
 import fu.se.myplatform.entity.QuitPlan;
 import fu.se.myplatform.enums.*;
 import fu.se.myplatform.exception.BadRequestException;
 import fu.se.myplatform.exception.MyException;
 import fu.se.myplatform.exception.exception.ResourceNotFoundException;
+import fu.se.myplatform.repository.AssessmentRepository;
 import fu.se.myplatform.repository.QuitPlanRepository;
 import org.modelmapper.ModelMapper;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -17,6 +17,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -33,75 +34,56 @@ public class QuitPlanService {
 
     @Autowired
     ModelMapper modelMapper;
+    @Autowired
+    FagerstromService fagerstromService;
+    @Autowired
+    AssessmentRepository assessmentRepository;
 
-    public QuitPlanResponse createPlan(QuitPlanRequest planRequest) {
+    /**
+     * Luồng 1: Tạo kế hoạch theo đề xuất của hệ thống.
+     */
+    @Transactional
+    public QuitPlanResponse createSystemGeneratedPlan(SystemPlanRequestDTO request) {
         Account account = authenticationService.getCurrentAccount();
-        // Nếu đã có kế hoạch thì trả về lỗi, không xóa tự động
-        if (quitPlanRepository.findByAccount(account).isPresent()) {
-            throw new MyException("Bạn đã có kế hoạch cai thuốc. Vui lòng xóa kế hoạch cũ trước khi tạo mới!");
-        }
-        // Validate số tuần chỉ được phép là 2,3,4,5,6
-        int weeks = planRequest.getDurationWeeks();
-        if (weeks < 2 || weeks > 6) {
-            throw new MyException("Thời gian kế hoạch chỉ được phép từ 2 đến 6 tuần!");
-        }
+        checkExistingPlan(account);
+        Assessment assessment = assessmentRepository.findById(request.getAssessmentId())
+                .orElseThrow(() -> new MyException("ID đánh giá không hợp lệ."));
 
-        // Validate pricePerPack
-        if (planRequest.getPricePerPack() == null || planRequest.getPricePerPack().compareTo(BigDecimal.ZERO) <= 0) {
-            throw new MyException("Giá tiền một bao thuốc phải lớn hơn 0!");
+
+        if (!assessment.getAccount().getUserId().equals(account.getUserId())) {
+            throw new MyException("Không có quyền sử dụng kết quả đánh giá này.");
         }
 
-        Set<QuitReason> reasons = new HashSet<>(planRequest.getReasons());
-        Set<Triggers> triggers = new HashSet<>(planRequest.getTriggers());
-        Set<SupportMethod> supportMethods = new HashSet<>(planRequest.getSupportMethods());
-
-        //entity
-        QuitPlan plan = new QuitPlan();
-        plan.setStartDate(planRequest.getStartDate());
-        plan.setCigarettesPerDay(planRequest.getNumberOfCigarettes());
-        plan.setPricePerPack(planRequest.getPricePerPack());  // Thêm dòng này
-        plan.setReasons(reasons);
-        plan.setTriggers(triggers);
-        plan.setSupportMethods(supportMethods);
-        plan.setAccount(account);
-
-        BigDecimal dailyCost = planRequest.getPricePerPack()
-                .multiply(BigDecimal.valueOf(planRequest.getNumberOfCigarettes()))
-                .divide(BigDecimal.valueOf(20), RoundingMode.HALF_UP); // Assuming 20 cigarettes per pack
-        plan.setDailyCost(dailyCost);
-        plan.setWeeklyCost(dailyCost.multiply(BigDecimal.valueOf(7)));
-        plan.setMonthlyCost(dailyCost.multiply(BigDecimal.valueOf(30)));
-        plan.setYearlyCost(dailyCost.multiply(BigDecimal.valueOf(365)));
-
-        List<TaperingStep> taperingSchedule = generateTaperingSchedule(
-                planRequest.getStartDate(),
-                planRequest.getDurationWeeks(),
-                planRequest.getNumberOfCigarettes()
+        // Bước 2: Tạo plan với thông tin từ assessment
+        int durationWeeks = determinePlanDuration(assessment.getDependencyLevel());
+        QuitPlan plan = createAndPopulatePlan(request, account, assessment, durationWeeks);
+        List<TaperingStep> schedule = generateStandardizedTaperingSchedule(
+                assessment.getDependencyLevel(), plan.getStartDate(), plan.getCigarettesPerDay(), durationWeeks
         );
-        plan.setTaperingSchedule(taperingSchedule);
-        quitPlanRepository.save(plan);
+        plan.setTaperingSchedule(schedule);
 
-        //response
-        QuitPlanResponse response = modelMapper.map(plan, QuitPlanResponse.class);
-        response.setTaperingSchedule(taperingSchedule);
-        response.setStartDate(plan.getStartDate());
-        response.setDailyCost(plan.getDailyCost());
-        response.setWeeklyCost(plan.getWeeklyCost());
-        response.setMonthlyCost(plan.getMonthlyCost());
-        response.setYearlyCost(plan.getYearlyCost());
-        response.setNumberOfCigarettes(plan.getCigarettesPerDay());
-        response.setPricePerPack(plan.getPricePerPack());  // Map giá trị pricePerPack vào response
-        response.setReasons(plan.getReasons());
-        response.setTriggers(plan.getTriggers());
-        response.setSupportMethods(plan.getSupportMethods());
+        QuitPlan savedPlan = quitPlanRepository.save(plan);
+        return mapPlanToResponse(savedPlan); // <-- Sử dụng hàm map tay cho response
+    }
+    /**
+     * Luồng 2: Tạo kế hoạch do người dùng tùy chỉnh thời gian.
+     */
+    @Transactional
+    public QuitPlanResponse createUserDefinedPlan(UserPlanRequestDTO request) {
+        Account account = authenticationService.getCurrentAccount();
+        checkExistingPlan(account);
+        validateDuration(request.getDurationWeeks());
 
-        // Thêm tips dựa trên triggers và support methods
-        List<String> allTips = new ArrayList<>();
-        allTips.addAll(suggestTips(triggers));
-        allTips.addAll(suggestTipsForSupport(supportMethods));
-        response.setTips(allTips);
+        Assessment assessment = assessmentRepository.findById(request.getAssessmentId())
+                .orElseThrow(() -> new MyException("ID đánh giá không hợp lệ."));
+        QuitPlan plan = createAndPopulatePlan(request, account, assessment, request.getDurationWeeks());
+        List<TaperingStep> schedule = generateLinearTaperingSchedule(
+                plan.getStartDate(), plan.getDurationWeeks(), plan.getCigarettesPerDay()
+        );
+        plan.setTaperingSchedule(schedule);
 
-        return response;
+        QuitPlan savedPlan = quitPlanRepository.save(plan);
+        return mapPlanToResponse(savedPlan); // <-- Sử dụng hàm map tay cho response
     }
 
     private List<TaperingStep> generateTaperingSchedule(
@@ -147,6 +129,50 @@ public class QuitPlanService {
         steps.add(quitStep);
 
         return steps;
+    }
+    private QuitPlanResponse mapPlanToResponse(QuitPlan plan) {
+        // 1. Khởi tạo đối tượng Response DTO rỗng
+        QuitPlanResponse response = new QuitPlanResponse();
+
+        // 2. Map các trường dữ liệu đơn giản
+        response.setId(plan.getId());
+        response.setStartDate(plan.getStartDate());
+        response.setNumberOfCigarettes(plan.getCigarettesPerDay()); // Chú ý tên trường có thể khác nhau
+        response.setPricePerPack(plan.getPricePerPack());
+        response.setDurationWeeks(plan.getDurationWeeks());
+
+        // 3. Map các trường chi phí đã được tính toán
+        response.setDailyCost(plan.getDailyCost());
+        response.setWeeklyCost(plan.getWeeklyCost());
+        response.setMonthlyCost(plan.getMonthlyCost());
+        response.setYearlyCost(plan.getYearlyCost());
+
+        // 4. Map các danh sách (Collection)
+        response.setReasons(plan.getReasons());
+        response.setTriggers(plan.getTriggers());
+        response.setSupportMethods(plan.getSupportMethods());
+        response.setTaperingSchedule(plan.getTaperingSchedule());
+
+        // 5. Map thông tin từ đối tượng Assessment liên quan
+        // Luôn kiểm tra null để đảm bảo an toàn, tránh NullPointerException
+        if (plan.getAssessment() != null) {
+            response.setFagerstromScore(plan.getAssessment().getScore());
+            response.setDependencyLevel(plan.getAssessment().getDependencyLevel());
+        }
+
+        // 6. Tạo danh sách 'tips' gợi ý
+        // Giả sử bạn có các hàm suggestTips và suggestTipsForSupport
+        List<String> allTips = new ArrayList<>();
+        if (plan.getTriggers() != null && !plan.getTriggers().isEmpty()) {
+            allTips.addAll(suggestTips(plan.getTriggers()));
+        }
+        if (plan.getSupportMethods() != null && !plan.getSupportMethods().isEmpty()) {
+            allTips.addAll(suggestTipsForSupport(plan.getSupportMethods()));
+        }
+        response.setTips(allTips);
+
+        // 7. Trả về đối tượng response hoàn chỉnh
+        return response;
     }
 
     private List<String> suggestTips(Set<Triggers> triggers) {
@@ -410,6 +436,121 @@ public class QuitPlanService {
         response.setTips(allTips);
 
         return response;
+    }
+    private QuitPlan createAndPopulatePlan(Object requestDTO, Account account, Assessment assessment, int duration) {
+        QuitPlan plan = modelMapper.map(requestDTO, QuitPlan.class);
+        plan.setAccount(account);
+        plan.setAssessment(assessment);
+        plan.setDurationWeeks(duration);
+        calculateAndSetCosts(plan);
+        return plan;
+    }
+
+    private void checkExistingPlan(Account account) {
+        quitPlanRepository.findByAccount(account).ifPresent(p -> {
+            throw new MyException("Bạn đã có kế hoạch. Vui lòng xóa kế hoạch cũ!");
+        });
+    }
+
+    private void validateDuration(int weeks) {
+        if (weeks < 2 || weeks > 6) {
+            throw new MyException("Thời gian kế hoạch chỉ được phép từ 2 đến 6 tuần!");
+        }
+    }
+
+    private int determinePlanDuration(DependencyLevel level) {
+        switch (level) {
+            case NHẸ: return 3;
+            case TRUNG_BÌNH: return 4;
+            case NẶNG: return 6;
+            default: return 4;
+        }
+    }
+    private QuitPlan createAndPopulatePlan(SystemPlanRequestDTO request, Account account, Assessment assessment, int duration) {
+        QuitPlan plan = new QuitPlan();
+
+        // Gán giá trị thủ công - an toàn và rõ ràng
+        plan.setStartDate(request.getStartDate());
+        plan.setCigarettesPerDay(request.getNumberOfCigarettes());
+        plan.setPricePerPack(request.getPricePerPack());
+        plan.setReasons(request.getReasons());
+        plan.setTriggers(request.getTriggers());
+        plan.setSupportMethods(request.getSupportMethods());
+
+        // Gán các đối tượng liên quan
+        plan.setAccount(account);
+        plan.setAssessment(assessment);
+        plan.setDurationWeeks(duration);
+
+        // Gọi hàm tính toán
+        calculateAndSetCosts(plan);
+
+        return plan;
+    }
+
+    /**
+     * Helper mới cho UserPlanRequestDTO (thay thế ModelMapper)
+     */
+    private QuitPlan createAndPopulatePlan(UserPlanRequestDTO request, Account account, Assessment assessment, int duration) {
+        QuitPlan plan = new QuitPlan();
+
+        // Gán giá trị thủ công
+        plan.setStartDate(request.getStartDate());
+        plan.setCigarettesPerDay(request.getNumberOfCigarettes());
+        plan.setPricePerPack(request.getPricePerPack());
+        plan.setReasons(request.getReasons());
+        plan.setTriggers(request.getTriggers());
+        plan.setSupportMethods(request.getSupportMethods());
+
+        // Gán các đối tượng liên quan
+        plan.setAccount(account);
+        plan.setAssessment(assessment);
+        plan.setDurationWeeks(duration);
+
+        // Gọi hàm tính toán
+        calculateAndSetCosts(plan);
+
+        return plan;
+    }
+
+    private List<TaperingStep> generateStandardizedTaperingSchedule(DependencyLevel level, LocalDate startDate, int startCigarettes, int durationWeeks) {
+        List<TaperingStep> steps = new ArrayList<>();
+        double[] percentages;
+        switch (level) {
+            case NHẸ: percentages = new double[]{0.60, 0.30, 0.10}; break;
+            case TRUNG_BÌNH: percentages = new double[]{0.75, 0.50, 0.25, 0.10}; break;
+            default: case NẶNG: percentages = new double[]{0.85, 0.70, 0.55, 0.40, 0.20, 0.10}; break;
+        }
+        for (int i = 0; i < durationWeeks; i++) {
+            int target = (int) Math.ceil(startCigarettes * percentages[i]);
+            if (i == durationWeeks - 1 && target < 1) target = 1;
+            steps.add(new TaperingStep(i + 1, startDate.plusWeeks(i), startDate.plusWeeks(i+1).minusDays(1), target, "Kế hoạch theo đề xuất hệ thống."));
+        }
+        steps.add(new TaperingStep(durationWeeks + 1, startDate.plusWeeks(durationWeeks), startDate.plusWeeks(durationWeeks), 0, "Ngày bỏ thuốc hoàn toàn!"));
+        return steps;
+    }
+
+    private List<TaperingStep> generateLinearTaperingSchedule(LocalDate startDate, int durationWeeks, int startCigarettes) {
+        List<TaperingStep> steps = new ArrayList<>();
+        double totalReduction = startCigarettes > 1 ? startCigarettes - 1 : 0;
+        double decreasePerWeek = durationWeeks > 0 ? totalReduction / durationWeeks : 0;
+        for (int i = 1; i <= durationWeeks; i++) {
+            int target = (int) Math.round(startCigarettes - (decreasePerWeek * i));
+            if (target < 1 && i < durationWeeks) target = 1; else if (i == durationWeeks) target = 1;
+            steps.add(new TaperingStep(i, startDate.plusWeeks(i - 1), startDate.plusWeeks(i).minusDays(1), target, "Kế hoạch tùy chỉnh."));
+        }
+        steps.add(new TaperingStep(durationWeeks + 1, startDate.plusWeeks(durationWeeks), startDate.plusWeeks(durationWeeks), 0, "Ngày bỏ thuốc hoàn toàn!"));
+        return steps;
+    }
+
+    private void calculateAndSetCosts(QuitPlan plan) {
+        BigDecimal dailyCost = plan.getPricePerPack()
+                .multiply(BigDecimal.valueOf(plan.getCigarettesPerDay()))
+                .divide(BigDecimal.valueOf(20), 2, RoundingMode.HALF_UP);
+        plan.setDailyCost(dailyCost);
+        plan.setWeeklyCost(dailyCost.multiply(BigDecimal.valueOf(7)));
+        plan.setMonthlyCost(dailyCost.multiply(BigDecimal.valueOf(30)));
+        plan.setYearlyCost(dailyCost.multiply(BigDecimal.valueOf(365)));
     }
 
     /**
