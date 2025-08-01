@@ -9,5 +9,6 @@ public class RatingResponse {
     private String coachName;
     private int stars;
     private String comment;
+    private Long memberId;
     private String memberName; // optional
 }

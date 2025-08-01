@@ -11,6 +11,8 @@ import fu.se.myplatform.repository.RatingRepository;
 import org.springframework.stereotype.Service;
 import lombok.RequiredArgsConstructor;
 
+import java.util.List;
+
 
 @Service
 @RequiredArgsConstructor
@@ -30,5 +32,9 @@ public class RatingService {
         rating.setStars(stars);
         rating.setComment(comment);
         return ratingRepository.save(rating);
+    }
+
+    public List<Rating> getAllRatings() {
+        return ratingRepository.findAll();
     }
 }

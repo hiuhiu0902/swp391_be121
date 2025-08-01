@@ -16,6 +16,9 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
+import java.util.stream.Collectors;
+
 @RestController
 @RequestMapping("/api/rating")
 @SecurityRequirement(
@@ -33,7 +36,7 @@ public class RatingAPI {
     private ModelMapper modelMapper;
 
 
-    @PostMapping("/api/rating")
+    @PostMapping("")
     public ResponseEntity<RatingResponse> addRating(@RequestBody RatingRequest request) {
         String username = SecurityContextHolder.getContext().getAuthentication().getName();
         Account account = accountRepository.findByUserName(username);
@@ -48,4 +51,28 @@ public class RatingAPI {
         return ResponseEntity.ok(response);
     }
 
+    @GetMapping("/all")
+//    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<List<RatingResponse>> getAllRatings() {
+        List<Rating> ratings = ratingService.getAllRatings();
+
+        // Chuyển đổi từ List<Rating> sang List<RatingResponse> để trả về dữ liệu cần thiết
+        List<RatingResponse> responseList = ratings.stream()
+                .map(rating -> {
+                    RatingResponse response = modelMapper.map(rating, RatingResponse.class);
+                    // Lấy thông tin chi tiết để hiển thị cho admin
+                    if (rating.getMember() != null && rating.getMember().getUser() != null) {
+                        response.setMemberName(rating.getMember().getUser().getFullName());
+                        response.setMemberId(rating.getMember().getMemberId());
+                    }
+                    if (rating.getCoach() != null && rating.getCoach().getUser() != null) {
+                        response.setCoachName(rating.getCoach().getUser().getFullName());
+                        response.setCoachId(rating.getCoach().getCoachId());
+                    }
+                    return response;
+                })
+                .collect(Collectors.toList());
+
+        return ResponseEntity.ok(responseList);
+    }
 }

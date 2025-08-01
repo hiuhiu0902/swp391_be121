@@ -58,6 +58,7 @@ public class MemberService {
             throw new AuthenticationException("Coach đã đủ số lượng member");
         }
         member.setCoach(coach);
+
         return memberRepository.save(member);
     }
     public List<CoachShortDTO> getAvailableCoach() {
@@ -72,7 +73,7 @@ public class MemberService {
                     dto.setId(coach.getCoachId());
                     dto.setName(coach.getUser().getFullName()); // Hoặc lấy full name nếu cần
                     // Nếu có avatar URL, trả về link
-                    dto.setAvatarUrl(coach.getProfileImage() != null ? "/avatars/" + coach.getCoachId() + ".jpg" : null);
+                    dto.setAvatarUrl(coach.getUser().getAvatarUrl());
                     return dto;
                 })
                 .collect(Collectors.toList());

@@ -23,19 +23,18 @@ public class Blog {
     @Column(nullable = false, columnDefinition = "NVARCHAR(MAX)")
     private String title;
 
-    @Column(columnDefinition = "TEXT", nullable = false)
+    @Column(columnDefinition = "NVARCHAR(MAX)", nullable = false)
     private String content;
 
     private String thumbnail;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "user_id", nullable = false)
+    @JoinColumn(name = "user_id")
     @OnDelete(action = OnDeleteAction.CASCADE)
     private Account user;  // Liên kết với Account để xác định người đăng
 
     @Column(name = "user_id", insertable = false, updatable = false)
     private Long userId;   // Để dễ dàng truy vấn mà không cần join
-
     @Column(nullable = false)
     private LocalDateTime createdAt;
 
