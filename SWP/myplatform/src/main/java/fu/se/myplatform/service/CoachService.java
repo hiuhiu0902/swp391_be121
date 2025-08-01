@@ -1,9 +1,6 @@
 package fu.se.myplatform.service;
 
-import fu.se.myplatform.dto.MemberShortDTO;
-import fu.se.myplatform.dto.SmokingRecordResponse;
-import fu.se.myplatform.dto.TaperingStep;
-import fu.se.myplatform.dto.WeeklyProgressStats;
+import fu.se.myplatform.dto.*;
 import fu.se.myplatform.entity.*;
 import fu.se.myplatform.repository.CoachRepository;
 import fu.se.myplatform.repository.MemberRepository;
@@ -13,8 +10,10 @@ import org.modelmapper.ModelMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import lombok.RequiredArgsConstructor;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -199,5 +198,69 @@ public class CoachService {
         if (member.getCoach() == null || !member.getCoach().getCoachId().equals(coachId)) {
             throw new RuntimeException("Bạn không có quyền truy cập vào dữ liệu của người dùng này.");
         }
+    }
+    @Transactional
+    public QuitPlanResponse adjustNextWeekTarget(Long coachId, Long memberId, AdjustWeeklyTargetDTO request) {
+        // Bước 1: Xác thực quyền của Coach
+        verifyCoachAccess(coachId, memberId);
+
+        // Bước 2: Tìm kế hoạch của Member
+        Account memberAccount = memberRepository.findById(memberId)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy Member với ID: " + memberId))
+                .getUser();
+        QuitPlan plan = quitPlanRepository.findByAccount(memberAccount)
+                .orElseThrow(() -> new RuntimeException("Member này chưa có kế hoạch cai thuốc."));
+
+        // Bước 3: Logic "thông minh" để xác định tuần tiếp theo
+        LocalDate today = LocalDate.now();
+        LocalDate planStartDate = plan.getStartDate();
+
+        if (today.isBefore(planStartDate)) {
+            throw new RuntimeException("Kế hoạch chưa bắt đầu, không thể điều chỉnh tuần tiếp theo.");
+        }
+
+        // Tính toán số ngày đã trôi qua kể từ khi bắt đầu kế hoạch
+        long daysFromStart = ChronoUnit.DAYS.between(planStartDate, today);
+        // Xác định tuần hiện tại (chia cho 7, +1 vì tuần bắt đầu từ 1)
+        int currentWeekNumber = (int) (daysFromStart / 7) + 1;
+        int nextWeekNumber = currentWeekNumber + 1;
+
+        // Bước 4: Tìm đúng tuần tiếp theo trong lịch trình
+        TaperingStep stepToUpdate = plan.getTaperingSchedule().stream()
+                .filter(step -> step.getWeekNumber() == nextWeekNumber && step.getCigarettesPerDay() >= 0) // Chấp nhận cả mục tiêu = 0
+                .findFirst()
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy tuần tiếp theo (Tuần " + nextWeekNumber + ") trong kế hoạch hoặc kế hoạch đã kết thúc."));
+
+        // Bước 5: Cập nhật số điếu thuốc mục tiêu mới
+        if (request.getNewTargetCigarettes() < 0) {
+            throw new RuntimeException("Số điếu thuốc mục tiêu không thể là số âm.");
+        }
+        stepToUpdate.setCigarettesPerDay(request.getNewTargetCigarettes());
+        stepToUpdate.setNote("Đã được Coach điều chỉnh vào ngày " + today); // Thêm ghi chú để người dùng biết
+
+        // Bước 6: Lưu lại và trả về kết quả
+        QuitPlan updatedPlan = quitPlanRepository.save(plan);
+        return mapPlanToResponse(updatedPlan);
+    }
+    private QuitPlanResponse mapPlanToResponse(QuitPlan plan) {
+        QuitPlanResponse response = new QuitPlanResponse();
+        response.setId(plan.getId());
+        response.setStartDate(plan.getStartDate());
+        response.setNumberOfCigarettes(plan.getCigarettesPerDay());
+        response.setPricePerPack(plan.getPricePerPack());
+        response.setDurationWeeks(plan.getDurationWeeks());
+        response.setDailyCost(plan.getDailyCost());
+        response.setWeeklyCost(plan.getWeeklyCost());
+        response.setMonthlyCost(plan.getMonthlyCost());
+        response.setYearlyCost(plan.getYearlyCost());
+        response.setReasons(plan.getReasons());
+        response.setTriggers(plan.getTriggers());
+        response.setSupportMethods(plan.getSupportMethods());
+        response.setTaperingSchedule(plan.getTaperingSchedule());
+        if (plan.getAssessment() != null) {
+            response.setFagerstromScore(plan.getAssessment().getScore());
+            response.setDependencyLevel(plan.getAssessment().getDependencyLevel());
+        }
+        return response;
     }
 }

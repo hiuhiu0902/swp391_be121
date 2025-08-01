@@ -1,8 +1,6 @@
 package fu.se.myplatform.api;
 
-import fu.se.myplatform.dto.MemberShortDTO;
-import fu.se.myplatform.dto.SmokingRecordResponse;
-import fu.se.myplatform.dto.WeeklyProgressStats;
+import fu.se.myplatform.dto.*;
 import fu.se.myplatform.entity.Account;
 import fu.se.myplatform.entity.QuitPlan;
 import fu.se.myplatform.service.AccountService;
@@ -64,5 +62,16 @@ public class CoachAPI {
         List<WeeklyProgressStats> allStats = coachService.getMemberAllWeeksProgress(coachId, memberId);
         return ResponseEntity.ok(allStats);
     }
-
+    @PatchMapping("/{coachId}/members/{memberId}/plan/next-week")
+    public ResponseEntity<?> adjustNextWeekTarget(
+            @PathVariable Long coachId,
+            @PathVariable Long memberId,
+            @RequestBody AdjustWeeklyTargetDTO request) {
+        try {
+            QuitPlanResponse updatedPlan = coachService.adjustNextWeekTarget(coachId, memberId, request);
+            return ResponseEntity.ok(updatedPlan);
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
 }
