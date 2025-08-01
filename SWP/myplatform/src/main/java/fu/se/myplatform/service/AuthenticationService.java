@@ -113,44 +113,60 @@ public class AuthenticationService implements UserDetailsService {
     }
     public AccountResponse login(LoginRequest loginRequest) {
         try {
+            // Bước 1: Xác thực username và password
             authenticationManager.authenticate(new UsernamePasswordAuthenticationToken(
                     loginRequest.getUserName(),
                     loginRequest.getPassword()
             ));
         } catch (Exception e) {
-            // Ghi log lỗi đăng nhập
+            // Ghi log lỗi đăng nhập (sai thông tin)
             logEventService.logError("Login failed for user: " + loginRequest.getUserName(), e.getMessage());
-            logger.error("Login failed for user: {}", loginRequest.getUserName(), e);  // Sử dụng logger.error với stack trace
+            logger.error("Login failed for user: {}", loginRequest.getUserName(), e);
 
-            throw new AuthenticationException("Invalid username or password");
+            throw new AuthenticationException("Tên đăng nhập hoặc mật khẩu không chính xác");
         }
+
+        // Bước 2: Lấy thông tin tài khoản từ database
         Account account = authenticationRepository.findAccountByUserName(loginRequest.getUserName());
-        // Ghi log đăng nhập thành công
+
+        if (!account.isActive()) {
+            logEventService.logError("Attempted login to deactivated account: " + loginRequest.getUserName(), "Account is inactive");
+            logger.warn("Attempted login to deactivated account: {}", loginRequest.getUserName());
+
+            // Ném lỗi và không cho phép đăng nhập
+            throw new AuthenticationException("Tài khoản của bạn đã bị khóa hoặc không tồn tại.");
+        }
+
+        // Bước 4: Nếu tài khoản hợp lệ và đang hoạt động, tiếp tục xử lý
         logEventService.logLogin(loginRequest.getUserName());
-        logger.info("User {} logged in successfully", loginRequest.getUserName());  // Ghi log đăng nhập thành công
+        logger.info("User {} logged in successfully", loginRequest.getUserName());
+
         AccountResponse accountResponse = modelMapper.map(account, AccountResponse.class);
-        // Lấy thông tin Member hoặc Coach từ cơ sở dữ liệu
+
         if (account.getRole() == Role.MEMBER) {
-            // Nếu là Member, lấy thông tin Member
             Member member = memberRepository.findByUser(account);
-            accountResponse.setMemberId(member.getMemberId());
-            accountResponse.setIsVip(member.getIsVip());
-            accountResponse.setVipStartDate(member.getVipStartDate());
-            accountResponse.setVipExpiryDate(member.getVipExpiryDate());
-            accountResponse.setMemberStatus(member.getStatus());
-            if (member.getCoach() != null) {
-                // Nếu Member có Coach, lấy thông tin Coach
-                accountResponse.setCoachId(member.getCoach().getCoachId());
-                accountResponse.setCoachAddress(member.getCoach().getAddress());
-                accountResponse.setCoachStatus(member.getCoach().getStatus());
+            if (member != null) {
+                accountResponse.setMemberId(member.getMemberId());
+                accountResponse.setIsVip(member.getIsVip());
+                accountResponse.setVipStartDate(member.getVipStartDate());
+                accountResponse.setVipExpiryDate(member.getVipExpiryDate());
+                accountResponse.setMemberStatus(member.getStatus());
+                if (member.getCoach() != null) {
+                    accountResponse.setCoachId(member.getCoach().getCoachId());
+                    accountResponse.setCoachAddress(member.getCoach().getAddress());
+                    accountResponse.setCoachStatus(member.getCoach().getStatus());
+                }
             }
         } else if (account.getRole() == Role.COACH) {
-            // Nếu là Coach, lấy thông tin Coach
             Coach coach = coachRepository.findByUser(account);
-            accountResponse.setCoachId(coach.getCoachId());
-            accountResponse.setCoachAddress(coach.getAddress());
-            accountResponse.setCoachStatus(coach.getStatus());
+            if (coach != null) {
+                accountResponse.setCoachId(coach.getCoachId());
+                accountResponse.setCoachAddress(coach.getAddress());
+                accountResponse.setCoachStatus(coach.getStatus());
+            }
         }
+
+        // Tạo token và trả về response
         String token = tokenService.generateToken(account);
         accountResponse.setToken(token);
         return accountResponse;
@@ -356,30 +372,30 @@ public class AuthenticationService implements UserDetailsService {
                 throw new AccessDeniedException("Không có quyền xóa tài khoản");
             }
 
-            // 1. Xóa Member nếu có
-            Member member = memberRepository.findByUser(account);
-            if (member != null) {
-                memberRepository.delete(member);
-                memberRepository.flush();
-            }
-
-            // 2. Xóa Coach nếu có
-            Coach coach = coachRepository.findByUser(account);
-            if (coach != null) {
-                coachRepository.delete(coach);
-                coachRepository.flush();
-            }
-
-            // 3. Xóa Staff nếu có
-            Staff staff = staffRepository.findByUser(account);
-            if (staff != null) {
-                staffRepository.delete(staff);
-                staffRepository.flush();
-            }
+//            // 1. Xóa Member nếu có
+//            Member member = memberRepository.findByUser(account);
+//            if (member != null) {
+//                memberRepository.delete(member);
+//                memberRepository.flush();
+//            }
+//
+//            // 2. Xóa Coach nếu có
+//            Coach coach = coachRepository.findByUser(account);
+//            if (coach != null) {
+//                coachRepository.delete(coach);
+//                coachRepository.flush();
+//            }
+//
+//            // 3. Xóa Staff nếu có
+//            Staff staff = staffRepository.findByUser(account);
+//            if (staff != null) {
+//                staffRepository.delete(staff);
+//                staffRepository.flush();
+//            }
 
             // 4. Xóa Account
-            authenticationRepository.delete(account);
-            authenticationRepository.flush();
+            account.setActive(false);
+            authenticationRepository.save(account);
 
             // 5. Ghi log
             logEventService.logAccountDeletion(account.getEmail());

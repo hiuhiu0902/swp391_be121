@@ -289,4 +289,11 @@ public class BlogAPI {
         @Schema(example = "Lỗi khi upload ảnh")
         private String message;
     }
+
+    @PatchMapping("/{id}/soft-delete")
+    @PreAuthorize("hasRole('STAFF')")
+    public ResponseEntity<Void> softDeleteBlog(@PathVariable Long id) {
+        blogService.softDeleteBlog(id);
+        return ResponseEntity.ok().build();
+    }
 }

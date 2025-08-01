@@ -17,7 +17,8 @@ public class BlogResponse {
     private String thumbnail;
     private String image;  // URL của ảnh blog
     private Long userId;
-    private String authorName;
+    private String userName;
+    private String avatarUrl;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
     private BlogCategory category;

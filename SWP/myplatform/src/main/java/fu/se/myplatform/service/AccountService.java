@@ -40,6 +40,7 @@ public class AccountService{
         return authenticationRepository.findAll();
     }
 
+
 //    @PreAuthorize("hasAuthority('ADMIN')")
 //    public Account updateRole(Long accountId, String newRole) {
 //        Account account = authenticationRepository.findById(accountId)

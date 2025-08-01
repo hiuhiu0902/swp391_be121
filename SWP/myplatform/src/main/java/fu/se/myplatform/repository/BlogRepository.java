@@ -123,4 +123,9 @@ public interface BlogRepository extends JpaRepository<Blog, Long> {
             @Param("category") String category,
             @Param("featured") Boolean featured,
             Pageable pageable);
+
+    @Modifying
+    @Query("UPDATE Blog b SET b.isPublished = false WHERE b.id = :blogId")
+    @Transactional
+    void setPublishedFalse(@Param("blogId") Long blogId);
 }
