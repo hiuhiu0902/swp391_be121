@@ -23,9 +23,11 @@ import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import fu.se.myplatform.exception.exception.ResourceNotFoundException;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 
 @Service
@@ -361,48 +363,63 @@ public class AuthenticationService implements UserDetailsService {
         }
         return response;
     }
-    @org.springframework.transaction.annotation.Transactional
+    @Transactional
     public void deleteAccount(Long userId) {
         try {
-            Account account = authenticationRepository.findById(userId)
-                    .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy tài khoản với ID: " + userId));
+            Account accountToDelete = authenticationRepository.findById(userId)
+                    .orElseThrow(() -> new AuthenticationException("Account not found"));
 
-            // Kiểm tra quyền admin
-            if (!hasAdminRole()) {
-                throw new AccessDeniedException("Không có quyền xóa tài khoản");
+            Account currentAdmin = getCurrentAccount();
+            if(!currentAdmin.getRole().equals(Role.ADMIN)){
+                throw new AccessDeniedException("Bạn không có quyền xóa tài khoản này");
+            }
+            if(currentAdmin.getUsername().equals(accountToDelete.getUsername())){
+                throw new BadRequestException("Admim không thể xóa chính mình");
+            }
+            switch (accountToDelete.getRole()) {
+                case MEMBER:
+                    Member member = memberRepository.findByUser(accountToDelete);
+                    if (member != null) {
+                        member.setIsActived(false);
+                        member.setStatus("DEACTIVATED");
+                        memberRepository.save(member);
+                    }
+                    break;
+                case COACH:
+                    Coach coach = coachRepository.findByUser(accountToDelete);
+                    if(coach != null) {
+                        List<Member> asssignedMembers = new ArrayList<>(coach.getMembers());
+
+
+                        for (Member assignedMember :
+                                asssignedMembers) {
+                            String memberEmail = assignedMember.getUser().getEmail();
+                            String memberName = assignedMember.getUser().getFullName();
+                            emailService.sendCoachDeletedNotification(memberEmail, memberName, coach.getUser().getFullName());
+
+                            assignedMember.setCoach(null); // Gỡ liên kết với coach
+                        }
+                        memberRepository.saveAll(asssignedMembers);
+
+                        coach.setStatus("INACTIVE");
+                        coachRepository.save(coach);
+                    }
+                    break;
+                case STAFF:
+                    Staff staff = staffRepository.findByUser(accountToDelete);
+                    if(staff != null) {
+                        staff.setStatus("INACTIVE");
+                        staffRepository.save(staff);
+                    }
+                    break;
+                default:
+                    break;
             }
 
-//            // 1. Xóa Member nếu có
-//            Member member = memberRepository.findByUser(account);
-//            if (member != null) {
-//                memberRepository.delete(member);
-//                memberRepository.flush();
-//            }
-//
-//            // 2. Xóa Coach nếu có
-//            Coach coach = coachRepository.findByUser(account);
-//            if (coach != null) {
-//                coachRepository.delete(coach);
-//                coachRepository.flush();
-//            }
-//
-//            // 3. Xóa Staff nếu có
-//            Staff staff = staffRepository.findByUser(account);
-//            if (staff != null) {
-//                staffRepository.delete(staff);
-//                staffRepository.flush();
-//            }
-
-            // 4. Xóa Account
-            account.setActive(false);
-            authenticationRepository.save(account);
-
-            // 5. Ghi log
-            logEventService.logAccountDeletion(account.getEmail());
-
+            accountToDelete.setActive(false);
+            authenticationRepository.save(accountToDelete);
         } catch (Exception e) {
-            logEventService.logError("Lỗi khi xóa tài khoản ID " + userId, e.getMessage());
-            throw new RuntimeException("Lỗi khi xóa tài khoản: " + e.getMessage());
+            throw new RuntimeException("Lỗi khi xóa tài khoản: " + e.getMessage(), e);
         }
     }
     public Account resetPassword(ResetPasswordRequest resetPasswordRequest) {

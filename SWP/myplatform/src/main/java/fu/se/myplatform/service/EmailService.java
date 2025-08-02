@@ -43,7 +43,28 @@ public class EmailService {
         }catch (Exception e){
             System.out.println(e.getMessage());
         }
+    }
+    public void sendCoachDeletedNotification(String recipientEmail, String memberName, String coachName){
+        try{
+            Context context = new Context();
+            context.setVariable("name", memberName);
+            context.setVariable("coachName", coachName);
+            context.setVariable("message", "Your coach has been deleted. Please contact support for further assistance.");
 
+            String html = templateEngine.process("coach-deleted-notification", context);
+
+            MimeMessage mimeMessage = javaMailSender.createMimeMessage();
+            MimeMessageHelper mimeMessageHelper = new MimeMessageHelper(mimeMessage);
+
+            mimeMessageHelper.setFrom("admin@gmail.com");
+            mimeMessageHelper.setTo(recipientEmail);
+            mimeMessageHelper.setText(html, true);
+            mimeMessageHelper.setSubject("Coach Deleted Notification");
+
+            javaMailSender.send(mimeMessage);
+        } catch (Exception e){
+            System.out.println("Error sending coach deleted notification: " + e.getMessage());
+        }
     }
 
 }

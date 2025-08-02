@@ -24,11 +24,11 @@ public class MutedUser {
     private Account user;  // Người bị mute
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "muted_by", nullable = false)
+    @JoinColumn(name = "muted_by")
     @OnDelete(action = OnDeleteAction.SET_NULL)
     private Account mutedBy;  // Staff người thực hiện mute
 
-    @Column(nullable = false)
+    @Column()
     private LocalDateTime mutedAt;
 
     private LocalDateTime mutedUntil;  // Null nghĩa là mute vĩnh viễn

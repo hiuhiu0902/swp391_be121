@@ -20,10 +20,10 @@ public class Blog {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false, columnDefinition = "NVARCHAR(MAX)")
+//    @Column(nullable = false, columnDefinition = "NVARCHAR(MAX)")
     private String title;
 
-    @Column(columnDefinition = "NVARCHAR(MAX)", nullable = false)
+//    @Column(columnDefinition = "NVARCHAR(MAX)", nullable = false)
     private String content;
 
     private String thumbnail;
@@ -60,7 +60,7 @@ public class Blog {
     @OneToMany(mappedBy = "blog", cascade = CascadeType.ALL)
     private List<Comment> comments = new ArrayList<>();
 
-    @Column(columnDefinition = "VARCHAR(MAX)")
+//    @Column(columnDefinition = "VARCHAR(MAX)")
     private String image;  // URL của ảnh blog trên Cloudinary
 
     @PrePersist
