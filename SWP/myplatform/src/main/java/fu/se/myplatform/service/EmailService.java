@@ -66,5 +66,70 @@ public class EmailService {
             System.out.println("Error sending coach deleted notification: " + e.getMessage());
         }
     }
+    public void sendAccountCreationNotification(String recipientEmail, String userName, String password) {
+        try {
+            // Chuẩn bị context cho template
+            Context context = new Context();
+            context.setVariable("userName", userName);
+            context.setVariable("password", password);
+
+            // Tạo nội dung HTML từ template
+            String html = templateEngine.process("account-creation-notification", context);
+
+            // Tạo message email
+            MimeMessage mimeMessage = javaMailSender.createMimeMessage();
+            MimeMessageHelper mimeMessageHelper = new MimeMessageHelper(mimeMessage, true); // Bật chế độ HTML
+
+            // Thiết lập các thông tin cần thiết
+            mimeMessageHelper.setFrom("admin@gmail.com");
+            mimeMessageHelper.setTo(recipientEmail);
+            mimeMessageHelper.setSubject("Thông Báo: Tài Khoản Của Bạn Đã Được Tạo");
+            mimeMessageHelper.setText(html, true); // true để chỉ định nội dung là HTML
+
+            // Gửi email
+            javaMailSender.send(mimeMessage);
+            System.out.println("Mail Sent Successfully...");
+
+        } catch (Exception e) {
+            System.out.println("Error sending account creation notification: " + e.getMessage());
+        }
+    }
+    // Thêm hàm này vào trong class EmailService của bạn
+
+    /**
+     * Gửi email chào mừng cho người dùng mới đăng ký thành công.
+     * Sử dụng một template riêng biệt là "welcome-email".
+     * @param emailDetail Đối tượng chứa thông tin người nhận, chủ đề, và link.
+     */
+    public void sendWelcomeEmail(EmailDetail emailDetail) {
+        try {
+            Context context = new Context();
+
+            // Lấy tên người nhận từ email để cá nhân hóa (ví dụ: "example@gmail.com" -> "example")
+            // Ghi chú: Để cá nhân hóa tốt hơn, bạn nên thêm trường "name" vào EmailDetail
+            String recipientName = emailDetail.getRecipient().split("@")[0];
+            context.setVariable("recipientName", recipientName);
+            context.setVariable("link", emailDetail.getLink());
+
+            // Xử lý template
+            String html = templateEngine.process("welcome-email", context);
+
+            // Tạo và cấu hình message
+            MimeMessage mimeMessage = javaMailSender.createMimeMessage();
+            MimeMessageHelper mimeMessageHelper = new MimeMessageHelper(mimeMessage, true); // true = multipart
+
+            mimeMessageHelper.setFrom("admin@gmail.com");
+            mimeMessageHelper.setTo(emailDetail.getRecipient());
+            mimeMessageHelper.setSubject(emailDetail.getSubject());
+            mimeMessageHelper.setText(html, true); // true = nội dung là HTML
+
+            // Gửi email
+            javaMailSender.send(mimeMessage);
+            System.out.println("Welcome Email Sent Successfully...");
+
+        } catch (Exception e) {
+            System.out.println("Error sending welcome email: " + e.getMessage());
+        }
+    }
 
 }

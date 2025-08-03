@@ -98,7 +98,8 @@ public class AuthenticationService implements UserDetailsService {
             EmailDetail emailDetail = new EmailDetail();
             emailDetail.setRecipient(account.getEmail());
             emailDetail.setSubject("Chào mừng đến với My Platform");
-            emailService.sendMail(emailDetail);
+            emailDetail.setLink("http://localhost:3000/");
+            emailService.sendWelcomeEmail(emailDetail);
         } catch (Exception e) {
             // Log lỗi nhưng không throw exception vì đây không phải lỗi nghiêm trọng
             logEventService.logError("Không thể gửi email chào mừng cho " + account.getEmail(), e.getMessage());
@@ -218,7 +219,7 @@ public class AuthenticationService implements UserDetailsService {
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
         return authenticationRepository.findAccountByUserName(username);
     }
-    public AccountResponse createSpecialAccount(fu.se.myplatform.dto.CreateAccountRequest request) {
+    public AccountResponse createSpecialAccount(CreateAccountRequest request) {
         Account account = new Account();
         account.setUserName(request.getUserName());
         account.setPassword(passwordEncoder.encode(request.getPassword()));
@@ -227,7 +228,6 @@ public class AuthenticationService implements UserDetailsService {
         account.setPhoneNumber(request.getPhoneNumber());
         account.setRole(request.getRole());
         Account newAccount = authenticationRepository.save(account);
-
         if (request.getRole() != null) {
             switch (request.getRole()) {
                 case MEMBER -> {
@@ -254,6 +254,7 @@ public class AuthenticationService implements UserDetailsService {
                 }
                 default -> {}
             }
+            emailService.sendAccountCreationNotification(request.getEmail(), request.getUserName(), request.getPassword());
         }
         return modelMapper.map(newAccount, AccountResponse.class);
     }
@@ -383,14 +384,13 @@ public class AuthenticationService implements UserDetailsService {
                         member.setIsActived(false);
                         member.setStatus("DEACTIVATED");
                         memberRepository.save(member);
+                        member.setCoach(null);
                     }
                     break;
                 case COACH:
                     Coach coach = coachRepository.findByUser(accountToDelete);
                     if(coach != null) {
                         List<Member> asssignedMembers = new ArrayList<>(coach.getMembers());
-
-
                         for (Member assignedMember :
                                 asssignedMembers) {
                             String memberEmail = assignedMember.getUser().getEmail();
