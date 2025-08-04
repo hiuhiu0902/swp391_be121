@@ -45,9 +45,11 @@ public class QuitPlanService {
     @Transactional
     public QuitPlanResponse createSystemGeneratedPlan(SystemPlanRequestDTO request) {
         Account account = authenticationService.getCurrentAccount();
+
         checkExistingPlan(account);
-        Assessment assessment = assessmentRepository.findById(request.getAssessmentId())
-                .orElseThrow(() -> new MyException("ID đánh giá không hợp lệ."));
+        Assessment assessment = assessmentRepository.findByAccount(account);
+//        Assessment assessment = assessmentRepository.findById(request.getAssessmentId())
+//                .orElseThrow(() -> new MyException("ID đánh giá không hợp lệ."));
 
 
         if (!assessment.getAccount().getUserId().equals(account.getUserId())) {
@@ -74,8 +76,10 @@ public class QuitPlanService {
         checkExistingPlan(account);
         validateDuration(request.getDurationWeeks());
 
-        Assessment assessment = assessmentRepository.findById(request.getAssessmentId())
-                .orElseThrow(() -> new MyException("ID đánh giá không hợp lệ."));
+//        Assessment assessment = assessmentRepository.findById(request.getAssessmentId())
+//                .orElseThrow(() -> new MyException("ID đánh giá không hợp lệ."));
+        Assessment assessment = assessmentRepository.findByAccount(account);
+
         QuitPlan plan = createAndPopulatePlan(request, account, assessment, request.getDurationWeeks());
         List<TaperingStep> schedule = generateLinearTaperingSchedule(
                 plan.getStartDate(), plan.getDurationWeeks(), plan.getCigarettesPerDay()
@@ -460,9 +464,9 @@ public class QuitPlanService {
 
     private int determinePlanDuration(DependencyLevel level) {
         switch (level) {
-            case NHẸ: return 3;
-            case TRUNG_BÌNH: return 4;
-            case NẶNG: return 6;
+            case LOW: return 3;
+            case MEDIUM: return 4;
+            case HIGH: return 6;
             default: return 4;
         }
     }
@@ -517,9 +521,9 @@ public class QuitPlanService {
         List<TaperingStep> steps = new ArrayList<>();
         double[] percentages;
         switch (level) {
-            case NHẸ: percentages = new double[]{0.60, 0.30, 0.10}; break;
-            case TRUNG_BÌNH: percentages = new double[]{0.75, 0.50, 0.25, 0.10}; break;
-            default: case NẶNG: percentages = new double[]{0.85, 0.70, 0.55, 0.40, 0.20, 0.10}; break;
+            case LOW: percentages = new double[]{0.60, 0.30, 0.10}; break;
+            case MEDIUM: percentages = new double[]{0.75, 0.50, 0.25, 0.10}; break;
+            default: case HIGH: percentages = new double[]{0.85, 0.70, 0.55, 0.40, 0.20, 0.10}; break;
         }
         for (int i = 0; i < durationWeeks; i++) {
             int target = (int) Math.ceil(startCigarettes * percentages[i]);
