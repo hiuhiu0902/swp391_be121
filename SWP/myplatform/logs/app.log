@@ -22103,3 +22103,11 @@ Caused by: com.microsoft.sqlserver.jdbc.SQLServerException: Introducing FOREIGN 
 2025-08-05 06:46:00 - Tomcat started on port 8082 (http) with context path '/'
 2025-08-05 06:46:00 - Started MyplatformApplication in 36.199 seconds (process running for 38.87)
 2025-08-05 06:47:00 - WebSocketSession[0 current WS(0)-HttpStream(0)-HttpPoll(0), 0 total, 0 closed abnormally (0 connect failure, 0 send limit, 0 transport error)], stompSubProtocol[processed CONNECT(0)-CONNECTED(0)-DISCONNECT(0)], stompBrokerRelay[null], inboundChannel[pool size = 0, active threads = 0, queued tasks = 0, completed tasks = 0], outboundChannel[pool size = 0, active threads = 0, queued tasks = 0, completed tasks = 0], sockJsScheduler[pool size = 1, active threads = 1, queued tasks = 0, completed tasks = 0]
+2025-08-05 06:53:47 - Commencing graceful shutdown. Waiting for active requests to complete
+2025-08-05 06:53:47 - Graceful shutdown complete
+2025-08-05 06:53:47 - Stopping...
+2025-08-05 06:53:47 - BrokerAvailabilityEvent[available=false, SimpleBrokerMessageHandler [org.springframework.messaging.simp.broker.DefaultSubscriptionRegistry@43dd471f]]
+2025-08-05 06:53:47 - Stopped.
+2025-08-05 06:53:47 - Closing JPA EntityManagerFactory for persistence unit 'default'
+2025-08-05 06:53:47 - HikariPool-1 - Shutdown initiated...
+2025-08-05 06:53:47 - HikariPool-1 - Shutdown completed.
