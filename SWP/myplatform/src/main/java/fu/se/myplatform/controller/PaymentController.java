@@ -13,6 +13,7 @@ import fu.se.myplatform.service.MemberService;
 import fu.se.myplatform.service.PaymentFactory;
 import fu.se.myplatform.service.PaymentService;
 import fu.se.myplatform.service.TransactionService;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import jakarta.servlet.http.HttpServletRequest;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -24,6 +25,9 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/api/v1/payment")
+@SecurityRequirement(
+        name = "api"
+)
 public class PaymentController {
 
     // --- CÁC GIÁ TRỊ MẶC ĐỊNH CHO GÓI VIP ---

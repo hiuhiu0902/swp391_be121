@@ -1,5 +1,6 @@
 package fu.se.myplatform.dto;
 
+import fu.se.myplatform.enums.Gender;
 import fu.se.myplatform.enums.Role;
 import lombok.Getter;
 import lombok.Setter;
@@ -13,6 +14,7 @@ public class CreateAccountRequest {
     private String email;
     private String phoneNumber;
     private Role role;
+    private Gender gender;
     // Thông tin riêng cho từng role
     private String status; // Member, Staff, Coach
     // Coach

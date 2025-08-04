@@ -11,4 +11,7 @@ public class ProfileResponse {
     private String phone;
     private String address;
     private String role;
+    private boolean isVip;
+    private Long userId;
+    private Long memberId;
 }

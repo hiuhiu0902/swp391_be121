@@ -56,6 +56,7 @@ public class AuthenticationAPI {
     public ResponseEntity<ProfileResponse> viewProfile(
             @PathVariable String username) {
         ProfileResponse profile = authenticationService.viewProfile(username);
+
         return ResponseEntity.ok(profile);
     }
 

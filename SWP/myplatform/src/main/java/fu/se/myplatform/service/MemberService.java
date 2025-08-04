@@ -117,6 +117,7 @@ public class MemberService {
                     dto.setId(coach.getCoachId());
                     dto.setName(coach.getUser().getFullName());
                     dto.setAvatarUrl(coach.getUser().getAvatarUrl());
+                    dto.setStatus(coach.getStatus());
                     return dto;
                 })
                 .collect(Collectors.toList());
