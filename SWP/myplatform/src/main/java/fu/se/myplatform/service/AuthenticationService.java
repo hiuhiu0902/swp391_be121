@@ -417,6 +417,7 @@ public class AuthenticationService implements UserDetailsService {
             }
 
             accountToDelete.setActive(false);
+            emailService.sendAccountLockedNotification(accountToDelete.getEmail(), accountToDelete.getUsername());
             authenticationRepository.save(accountToDelete);
         } catch (Exception e) {
             throw new RuntimeException("Lỗi khi xóa tài khoản: " + e.getMessage(), e);

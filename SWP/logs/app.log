@@ -45337,3 +45337,11 @@ io.jsonwebtoken.security.SignatureException: JWT signature does not match locall
             on u1_0.user_id=m1_0.user_id 
     where
         m1_0.coach_id=?
+2025-08-03 22:25:17 - Commencing graceful shutdown. Waiting for active requests to complete
+2025-08-03 22:25:17 - Graceful shutdown complete
+2025-08-03 22:25:17 - Stopping...
+2025-08-03 22:25:17 - BrokerAvailabilityEvent[available=false, SimpleBrokerMessageHandler [org.springframework.messaging.simp.broker.DefaultSubscriptionRegistry@57567018]]
+2025-08-03 22:25:17 - Stopped.
+2025-08-03 22:25:17 - Closing JPA EntityManagerFactory for persistence unit 'default'
+2025-08-03 22:25:17 - HikariPool-1 - Shutdown initiated...
+2025-08-03 22:25:17 - HikariPool-1 - Shutdown completed.

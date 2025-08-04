@@ -131,5 +131,39 @@ public class EmailService {
             System.out.println("Error sending welcome email: " + e.getMessage());
         }
     }
+// Thêm phương thức này vào class EmailService của bạn
+    /**
+     * Gửi email thông báo cho người dùng khi tài khoản của họ bị khóa.
+     * Sử dụng template "account-locked-notification".
+     * @param recipientEmail Email của người nhận.
+     * @param userName Tên của người dùng để cá nhân hóa email.
+     */
+    public void sendAccountLockedNotification(String recipientEmail, String userName) {
+        try {
+            // Chuẩn bị context cho template
+            Context context = new Context();
+            context.setVariable("userName", userName);
+            context.setVariable("supportEmail", "support@myplatform.com"); // Ví dụ email hỗ trợ
 
+            // Xử lý template để tạo nội dung HTML
+            String html = templateEngine.process("account-locked-notification", context);
+
+            // Tạo message email
+            MimeMessage mimeMessage = javaMailSender.createMimeMessage();
+            MimeMessageHelper mimeMessageHelper = new MimeMessageHelper(mimeMessage, true); // true: cho phép nội dung HTML
+
+            // Thiết lập các thông tin cần thiết
+            mimeMessageHelper.setFrom("admin@gmail.com"); // Email người gửi
+            mimeMessageHelper.setTo(recipientEmail);
+            mimeMessageHelper.setSubject("Thông Báo Quan Trọng: Tài Khoản Của Bạn Đã Bị Khóa");
+            mimeMessageHelper.setText(html, true); // true: chỉ định nội dung là HTML
+
+            // Gửi email
+            javaMailSender.send(mimeMessage);
+        } catch (Exception e) {
+            // Ghi lại lỗi nếu có sự cố xảy ra
+            System.out.println("Error sending account locked notification email: " + e.getMessage());
+        }
+    }
 }
+
