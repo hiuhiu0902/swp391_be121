@@ -49,45 +49,47 @@ public class SmokingRecordAPI {
         response.setDate(record.getDate());
         response.setCigarettesSmoked(record.getCigarettesSmoked());
 
-        // Thêm thông báo dựa vào so sánh với số điếu ban đầu
+        // Lấy target của tuần hiện tại
         QuitPlan plan = quitPlanService.getCurrentUserPlanEntity();
-        int initialCigarettesPerDay = plan.getCigarettesPerDay();
+        int targetCigarettesForDay = smokingRecordService.getTargetForDate(recordDate, plan);
 
-        // Tính tiền tiết kiệm được
-        int savedCigarettes = initialCigarettesPerDay - record.getCigarettesSmoked();
-        if (savedCigarettes > 0) {
-            // Tính giá một điếu thuốc = giá gói / 20 điếu
-            BigDecimal pricePerCigarette = plan.getPricePerPack()
-                .divide(BigDecimal.valueOf(20), 2, java.math.RoundingMode.HALF_UP);
+        // Tính giá một điếu thuốc = giá gói / 20 điếu
+        BigDecimal pricePerCigarette = plan.getPricePerPack()
+            .divide(BigDecimal.valueOf(20), 2, java.math.RoundingMode.HALF_UP);
 
-            // Tính tiền tiết kiệm được hôm nay
-            BigDecimal moneySavedToday = pricePerCigarette.multiply(BigDecimal.valueOf(savedCigarettes));
-            response.setMoneySaved(moneySavedToday);
-            
-            // Tính tổng tiền tiết kiệm được từ trước đến nay
-            LocalDate startDate = plan.getStartDate();
-            List<SmokingRecord> allRecords = smokingRecordService.getRecordsByDateRange(startDate, recordDate);
-            BigDecimal totalMoneySaved = allRecords.stream()
-                .map(r -> {
-                    int dailySaved = initialCigarettesPerDay - r.getCigarettesSmoked();
-                    return dailySaved > 0 ?
-                        pricePerCigarette.multiply(BigDecimal.valueOf(dailySaved)) : 
-                        BigDecimal.ZERO;
-                })
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
-            response.setTotalMoneySaved(totalMoneySaved);
-        } else {
-            response.setMoneySaved(BigDecimal.ZERO);
-            response.setTotalMoneySaved(BigDecimal.ZERO);
+        // Tính chênh lệch số điếu so với target
+        int cigaretteDifference = targetCigarettesForDay - record.getCigarettesSmoked();
+
+        // Tính tiền tiết kiệm được (hoặc bị trừ) hôm nay
+        BigDecimal moneySavedToday = pricePerCigarette.multiply(BigDecimal.valueOf(Math.abs(cigaretteDifference)));
+        if (cigaretteDifference < 0) {
+            // Nếu hút nhiều hơn target, chuyển thành số âm
+            moneySavedToday = moneySavedToday.negate();
         }
+        response.setMoneySaved(moneySavedToday);
+        
+        // Tính tổng tiền tiết kiệm được từ trước đến nay
+        LocalDate startDate = plan.getStartDate();
+        List<SmokingRecord> allRecords = smokingRecordService.getRecordsByDateRange(startDate, recordDate);
+        BigDecimal totalMoneySaved = allRecords.stream()
+            .map(r -> {
+                int targetForDate = smokingRecordService.getTargetForDate(r.getDate(), plan);
+                int diff = targetForDate - r.getCigarettesSmoked();
+                BigDecimal dailySaved = pricePerCigarette.multiply(BigDecimal.valueOf(Math.abs(diff)));
+                return diff < 0 ? dailySaved.negate() : dailySaved;
+            })
+            .reduce(BigDecimal.ZERO, BigDecimal::add);
+        response.setTotalMoneySaved(totalMoneySaved);
 
-        if (record.getCigarettesSmoked() > initialCigarettesPerDay) {
-            response.setMessage("Bạn đã hút vượt quá số điếu hút ban đầu của bạn!");
-        } else if (record.getCigarettesSmoked() == initialCigarettesPerDay) {
-            response.setMessage("Hôm nay bạn hút bằng với số điếu ban đầu.");
+        // Cập nhật message
+        if (record.getCigarettesSmoked() > targetCigarettesForDay) {
+            response.setMessage("Bạn đã hút vượt quá target " + Math.abs(cigaretteDifference) + 
+                " điếu và bị trừ " + String.format("%,.0f", moneySavedToday.abs().doubleValue()) + " VNĐ!");
+        } else if (record.getCigarettesSmoked() == targetCigarettesForDay) {
+            response.setMessage("Hôm nay bạn hút đúng target.");
         } else {
-            response.setMessage("Xuất sắc! Bạn đã hút ít hơn số điếu ban đầu và tiết kiệm được "
-                + String.format("%,.0f", response.getMoneySaved().doubleValue()) + " VNĐ!");
+            response.setMessage("Xuất sắc! Bạn đã hút ít hơn target " + cigaretteDifference + 
+                " điếu và tiết kiệm được " + String.format("%,.0f", moneySavedToday.doubleValue()) + " VNĐ!");
         }
         return ResponseEntity.ok(response);
     }
@@ -103,34 +105,36 @@ public class SmokingRecordAPI {
         response.setDate(record.getDate());
         response.setCigarettesSmoked(record.getCigarettesSmoked());
 
-        // Tính tiền tiết kiệm được
+        // Lấy target của tuần hiện tại
         QuitPlan plan = quitPlanService.getCurrentUserPlanEntity();
-        int initialCigarettesPerDay = plan.getCigarettesPerDay();
-        int savedCigarettes = initialCigarettesPerDay - record.getCigarettesSmoked();
+        int targetCigarettesForDay = smokingRecordService.getTargetForDate(date, plan);
 
-        if (savedCigarettes > 0) {
-            BigDecimal pricePerCigarette = plan.getPricePerPack()
-                .divide(BigDecimal.valueOf(20), 2, java.math.RoundingMode.HALF_UP);
+        // Tính giá một điếu thuốc
+        BigDecimal pricePerCigarette = plan.getPricePerPack()
+            .divide(BigDecimal.valueOf(20), 2, java.math.RoundingMode.HALF_UP);
 
-            BigDecimal moneySavedToday = pricePerCigarette.multiply(BigDecimal.valueOf(savedCigarettes));
-            response.setMoneySaved(moneySavedToday);
+        // Tính chênh lệch số điếu so với target
+        int cigaretteDifference = targetCigarettesForDay - record.getCigarettesSmoked();
 
-            // Tính tổng tiền tiết kiệm được đến ngày này
-            LocalDate startDate = plan.getStartDate();
-            List<SmokingRecord> allRecords = smokingRecordService.getRecordsByDateRange(startDate, date);
-            BigDecimal totalMoneySaved = allRecords.stream()
-                .map(r -> {
-                    int dailySaved = initialCigarettesPerDay - r.getCigarettesSmoked();
-                    return dailySaved > 0 ?
-                        pricePerCigarette.multiply(BigDecimal.valueOf(dailySaved)) :
-                        BigDecimal.ZERO;
-                })
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
-            response.setTotalMoneySaved(totalMoneySaved);
-        } else {
-            response.setMoneySaved(BigDecimal.ZERO);
-            response.setTotalMoneySaved(BigDecimal.ZERO);
+        // Tính tiền tiết kiệm được (hoặc bị trừ) cho ngày này
+        BigDecimal moneySavedToday = pricePerCigarette.multiply(BigDecimal.valueOf(Math.abs(cigaretteDifference)));
+        if (cigaretteDifference < 0) {
+            moneySavedToday = moneySavedToday.negate();
         }
+        response.setMoneySaved(moneySavedToday);
+
+        // Tính tổng tiền tiết kiệm được đến ngày này
+        LocalDate startDate = plan.getStartDate();
+        List<SmokingRecord> allRecords = smokingRecordService.getRecordsByDateRange(startDate, date);
+        BigDecimal totalMoneySaved = allRecords.stream()
+            .map(r -> {
+                int targetForDate = smokingRecordService.getTargetForDate(r.getDate(), plan);
+                int diff = targetForDate - r.getCigarettesSmoked();
+                BigDecimal dailySaved = pricePerCigarette.multiply(BigDecimal.valueOf(Math.abs(diff)));
+                return diff < 0 ? dailySaved.negate() : dailySaved;
+            })
+            .reduce(BigDecimal.ZERO, BigDecimal::add);
+        response.setTotalMoneySaved(totalMoneySaved);
 
         return ResponseEntity.ok(response);
     }
@@ -154,28 +158,29 @@ public class SmokingRecordAPI {
                 res.setDate(record.getDate());
                 res.setCigarettesSmoked(record.getCigarettesSmoked());
 
-                // Tính tiền tiết kiệm được cho từng ngày
-                int initialCigarettesPerDay = plan.getCigarettesPerDay();
-                int savedCigarettes = initialCigarettesPerDay - record.getCigarettesSmoked();
-                if (savedCigarettes > 0) {
-                    BigDecimal moneySavedToday = pricePerCigarette.multiply(BigDecimal.valueOf(savedCigarettes));
-                    res.setMoneySaved(moneySavedToday);
+                // Lấy target của ngày
+                int targetCigarettesForDay = smokingRecordService.getTargetForDate(record.getDate(), plan);
+                int cigaretteDifference = targetCigarettesForDay - record.getCigarettesSmoked();
 
-                    // Tính tổng tiền tiết kiệm được đến ngày này
-                    List<SmokingRecord> recordsToDate = smokingRecordService.getRecordsByDateRange(plan.getStartDate(), record.getDate());
-                    BigDecimal totalMoneySaved = recordsToDate.stream()
-                        .map(r -> {
-                            int dailySaved = initialCigarettesPerDay - r.getCigarettesSmoked();
-                            return dailySaved > 0 ?
-                                pricePerCigarette.multiply(BigDecimal.valueOf(dailySaved)) :
-                                BigDecimal.ZERO;
-                        })
-                        .reduce(BigDecimal.ZERO, BigDecimal::add);
-                    res.setTotalMoneySaved(totalMoneySaved);
-                } else {
-                    res.setMoneySaved(BigDecimal.ZERO);
-                    res.setTotalMoneySaved(BigDecimal.ZERO);
+                // Tính tiền tiết kiệm được (hoặc bị trừ) cho ngày này
+                BigDecimal moneySavedToday = pricePerCigarette.multiply(BigDecimal.valueOf(Math.abs(cigaretteDifference)));
+                if (cigaretteDifference < 0) {
+                    moneySavedToday = moneySavedToday.negate();
                 }
+                res.setMoneySaved(moneySavedToday);
+
+                // Tính tổng tiền tiết kiệm được đến ngày này
+                List<SmokingRecord> recordsToDate = smokingRecordService.getRecordsByDateRange(plan.getStartDate(), record.getDate());
+                BigDecimal totalMoneySaved = recordsToDate.stream()
+                    .map(r -> {
+                        int targetForDate = smokingRecordService.getTargetForDate(r.getDate(), plan);
+                        int diff = targetForDate - r.getCigarettesSmoked();
+                        BigDecimal dailySaved = pricePerCigarette.multiply(BigDecimal.valueOf(Math.abs(diff)));
+                        return diff < 0 ? dailySaved.negate() : dailySaved;
+                    })
+                    .reduce(BigDecimal.ZERO, BigDecimal::add);
+                res.setTotalMoneySaved(totalMoneySaved);
+
                 return res;
             })
             .collect(Collectors.toList());

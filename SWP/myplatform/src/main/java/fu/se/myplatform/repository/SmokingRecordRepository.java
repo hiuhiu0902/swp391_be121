@@ -20,4 +20,8 @@ public interface SmokingRecordRepository extends JpaRepository<SmokingRecord, Lo
     );
 
     List<SmokingRecord> findByAccountOrderByDateDesc(Account account);
+
+    Optional<SmokingRecord> findFirstByAccountOrderByDateDesc(Account account);
+
+    List<SmokingRecord> findByAccountAndDateBetween(Account account, LocalDate dateAfter, LocalDate dateBefore);
 }

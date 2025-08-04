@@ -26,16 +26,16 @@ public class RankingAPI {
 //    public ResponseEntity<List<UserRankingDTO>> getTopRankings(@PathVariable int limit) {
 //        return ResponseEntity.ok(rankingService.getTopRankings(limit));
 //    }
-
-    @GetMapping("/money-saved")
-    public ResponseEntity<List<UserRankingDTO>> getMoneySavedRankings() {
-        return ResponseEntity.ok(rankingService.getMoneySavedRankings());
-    }
-
-    @GetMapping("/money-saved/top/{limit}")
-    public ResponseEntity<List<UserRankingDTO>> getTopMoneySavedRankings(@PathVariable int limit) {
-        return ResponseEntity.ok(rankingService.getTopMoneySavedRankings(limit));
-    }
+//
+//    @GetMapping("/money-saved")
+//    public ResponseEntity<List<UserRankingDTO>> getMoneySavedRankings() {
+//        return ResponseEntity.ok(rankingService.getMoneySavedRankings());
+//    }
+//
+//    @GetMapping("/money-saved/top/{limit}")
+//    public ResponseEntity<List<UserRankingDTO>> getTopMoneySavedRankings(@PathVariable int limit) {
+//        return ResponseEntity.ok(rankingService.getTopMoneySavedRankings(limit));
+//    }
 
     @GetMapping("/participation")
     public ResponseEntity<List<UserRankingDTO>> getParticipationRankings() {

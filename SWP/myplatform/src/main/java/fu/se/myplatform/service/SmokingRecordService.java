@@ -10,6 +10,7 @@ import fu.se.myplatform.repository.SmokingRecordRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
@@ -90,6 +91,25 @@ public class SmokingRecordService {
         return getRecordsByDateRange(weekStartDate, weekEndDate);
     }
 
+    public int calculateParticipationPoints(SmokingRecord record, QuitPlan plan) {
+        int basePoints = 1; // Điểm cơ bản cho việc record
+        int targetPoints = 0; // Điểm dựa vào target
+
+        // Lấy target của ngày hiện tại
+        int targetCigarettes = getTargetForDate(record.getDate(), plan);
+
+        // So sánh số điếu đã hút với target
+        if (record.getCigarettesSmoked() > targetCigarettes) {
+            targetPoints = 0; // Hút nhiều hơn target
+        } else if (record.getCigarettesSmoked() == targetCigarettes) {
+            targetPoints = 1; // Đúng target
+        } else {
+            targetPoints = 2; // Ít hơn target
+        }
+
+        return basePoints + targetPoints;
+    }
+
     public WeeklyProgressStats getWeeklyProgress(int weekNumber) {
         Account account = authenticationService.getCurrentAccount();
         QuitPlan plan = quitPlanRepository.findByAccount(account)
@@ -163,6 +183,50 @@ public class SmokingRecordService {
         stats.setDaysOnTarget(daysOn);
         stats.setDaysUnderTarget(daysUnder);
         stats.setDailyProgress(dailyProgress);
+
+        // Tính tiền tiết kiệm
+        BigDecimal pricePerCigarette = plan.getPricePerPack()
+            .divide(BigDecimal.valueOf(20), 2, java.math.RoundingMode.HALF_UP);
+
+        // Tính tiền tiết kiệm trong tuần
+        BigDecimal weeklyMoneySaved = weeklyRecords.stream()
+            .map(record -> {
+                int targetForDate = getTargetForDate(record.getDate(), plan);
+                int diff = targetForDate - record.getCigarettesSmoked();
+                BigDecimal dailySaved = pricePerCigarette.multiply(BigDecimal.valueOf(Math.abs(diff)));
+                return diff < 0 ? dailySaved.negate() : dailySaved;
+            })
+            .reduce(BigDecimal.ZERO, BigDecimal::add);
+        stats.setMoneySaved(weeklyMoneySaved);
+
+        // Tính tổng tiền tiết kiệm từ đầu đến cuối tuần này
+        List<SmokingRecord> allRecords = getRecordsByDateRange(plan.getStartDate(), weekEndDate);
+        BigDecimal totalMoneySaved = allRecords.stream()
+            .map(record -> {
+                int targetForDate = getTargetForDate(record.getDate(), plan);
+                int diff = targetForDate - record.getCigarettesSmoked();
+                BigDecimal dailySaved = pricePerCigarette.multiply(BigDecimal.valueOf(Math.abs(diff)));
+                return diff < 0 ? dailySaved.negate() : dailySaved;
+            })
+            .reduce(BigDecimal.ZERO, BigDecimal::add);
+        stats.setTotalMoneySaved(totalMoneySaved);
+
+        // Cập nhật tiền tiết kiệm cho từng ngày trong dailyProgress
+        for (WeeklyProgressStats.DailyProgress daily : dailyProgress) {
+            Optional<SmokingRecord> recordOpt = weeklyRecords.stream()
+                .filter(r -> r.getDate().equals(daily.getDate()))
+                .findFirst();
+
+            if (recordOpt.isPresent()) {
+                SmokingRecord record = recordOpt.get();
+                int targetForDate = getTargetForDate(record.getDate(), plan);
+                int diff = targetForDate - record.getCigarettesSmoked();
+                BigDecimal dailySaved = pricePerCigarette.multiply(BigDecimal.valueOf(Math.abs(diff)));
+                daily.setMoneySaved(diff < 0 ? dailySaved.negate() : dailySaved);
+            } else {
+                daily.setMoneySaved(BigDecimal.ZERO);
+            }
+        }
 
         if (weekNumber > 1) {
             LocalDate previousWeekStart = weekStartDate.minusWeeks(1);

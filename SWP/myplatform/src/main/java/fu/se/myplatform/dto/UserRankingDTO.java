@@ -11,4 +11,5 @@ public class UserRankingDTO {
     private BigDecimal totalMoneySaved;
     private int participationScore;
     private int rank;
+    private int secondaryScore; // Điểm phụ cho việc so sánh khi có cùng điểm chính
 }

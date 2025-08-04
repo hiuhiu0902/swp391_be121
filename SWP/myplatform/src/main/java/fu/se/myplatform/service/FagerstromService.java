@@ -38,8 +38,8 @@ public class FagerstromService {
     }
 
     private DependencyLevel determineDependencyLevel(int score) {
-        if (score <= 4) return DependencyLevel.NHẸ;
-        if (score <= 7) return DependencyLevel.TRUNG_BÌNH;
-        return DependencyLevel.NẶNG;
+        if (score <= 4) return DependencyLevel.LOW;
+        if (score <= 7) return DependencyLevel.MEDIUM;
+        return DependencyLevel.HIGH;
     }
 }

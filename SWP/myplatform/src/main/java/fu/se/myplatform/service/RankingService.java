@@ -27,6 +27,9 @@ public class RankingService {
     @Autowired
     private SmokingRecordRepository smokingRecordRepository;
 
+    @Autowired
+    private SmokingRecordService smokingRecordService;
+
     // Ranking theo tiền tiết kiệm
     public List<UserRankingDTO> getMoneySavedRankings() {
         List<UserRankingDTO> rankings = new ArrayList<>();
@@ -59,6 +62,30 @@ public class RankingService {
                 .collect(Collectors.toList());
     }
 
+    private int calculateConsecutiveDays(Account account) {
+        List<SmokingRecord> allRecords = smokingRecordRepository.findByAccountOrderByDateDesc(account);
+        if (allRecords.isEmpty()) {
+            return 0;
+        }
+
+        int maxConsecutiveDays = 1;
+        int currentStreak = 1;
+
+        for (int i = 0; i < allRecords.size() - 1; i++) {
+            LocalDate currentDate = allRecords.get(i).getDate();
+            LocalDate nextDate = allRecords.get(i + 1).getDate();
+
+            if (currentDate.minusDays(1).equals(nextDate)) {
+                currentStreak++;
+                maxConsecutiveDays = Math.max(maxConsecutiveDays, currentStreak);
+            } else {
+                currentStreak = 1;
+            }
+        }
+
+        return maxConsecutiveDays;
+    }
+
     // Ranking theo độ tham gia
     public List<UserRankingDTO> getParticipationRankings() {
         List<UserRankingDTO> rankings = new ArrayList<>();
@@ -69,13 +96,22 @@ public class RankingService {
             if (plan != null) {
                 UserRankingDTO ranking = calculateParticipationRanking(account, plan);
                 if (ranking.getParticipationScore() > 0) {
+                    // Thêm số ngày liên tục làm tiêu chí phụ
+                    ranking.setSecondaryScore(calculateConsecutiveDays(account));
                     rankings.add(ranking);
                 }
             }
         }
 
-        // Sắp xếp theo điểm tham gia (cao đến thấp)
-        rankings.sort((r1, r2) -> Integer.compare(r2.getParticipationScore(), r1.getParticipationScore()));
+        // Sắp xếp theo điểm tham gia (cao đến thấp) và số ngày liên tục
+        rankings.sort((r1, r2) -> {
+            int compareResult = Integer.compare(r2.getParticipationScore(), r1.getParticipationScore());
+            if (compareResult == 0) {
+                // Nếu điểm tham gia bằng nhau, so sánh theo số ngày liên tục
+                return Integer.compare(r2.getSecondaryScore(), r1.getSecondaryScore());
+            }
+            return compareResult;
+        });
 
         // Gán thứ hạng
         for (int i = 0; i < rankings.size(); i++) {
@@ -91,6 +127,33 @@ public class RankingService {
                 .collect(Collectors.toList());
     }
 
+    private UserRankingDTO calculateParticipationRanking(Account account, QuitPlan plan) {
+        UserRankingDTO dto = new UserRankingDTO();
+        dto.setAccountId(account.getUserId());
+        dto.setUsername(account.getUsername());
+        dto.setAvatarUrl(account.getAvatarUrl());
+
+        LocalDate startDate = plan.getStartDate();
+        // Lấy ngày của record gần nhất thay vì dùng ngày hiện tại
+        LocalDate lastRecordDate = smokingRecordRepository
+                .findFirstByAccountOrderByDateDesc(account)
+                .map(SmokingRecord::getDate)
+                .orElse(startDate);
+
+        List<SmokingRecord> records = smokingRecordRepository.findByAccountAndDateBetweenOrderByDateAsc(
+            account, startDate, lastRecordDate
+        );
+
+        // Tính tổng điểm tham gia
+        int totalPoints = 0;
+        for (SmokingRecord record : records) {
+            totalPoints += smokingRecordService.calculateParticipationPoints(record, plan);
+        }
+
+        dto.setParticipationScore(totalPoints);
+        return dto;
+    }
+
     private UserRankingDTO calculateMoneySavedRanking(Account account, QuitPlan plan) {
         UserRankingDTO dto = new UserRankingDTO();
         dto.setAccountId(account.getUserId());
@@ -104,22 +167,16 @@ public class RankingService {
         return dto;
     }
 
-    private UserRankingDTO calculateParticipationRanking(Account account, QuitPlan plan) {
-        UserRankingDTO dto = new UserRankingDTO();
-        dto.setAccountId(account.getUserId());
-        dto.setUsername(account.getUsername());
-        dto.setAvatarUrl(account.getAvatarUrl());
-
-        // Tính điểm tham gia
-        int participationScore = calculateParticipationScore(account, plan);
-        dto.setParticipationScore(participationScore);
-
-        return dto;
-    }
-
     private BigDecimal calculateTotalMoneySaved(Account account, QuitPlan plan) {
+        // Lấy ngày của record gần nhất thay vì dùng ngày hiện tại
+        LocalDate lastRecordDate = smokingRecordRepository
+                .findFirstByAccountOrderByDateDesc(account)
+                .map(SmokingRecord::getDate)
+                .orElse(plan.getStartDate());
+
         List<SmokingRecord> records = smokingRecordRepository.findByAccountAndDateBetweenOrderByDateAsc(
-            account, plan.getStartDate(), LocalDate.now());
+            account, plan.getStartDate(), lastRecordDate);
+
         BigDecimal pricePerCigarette = plan.getPricePerPack()
                 .divide(BigDecimal.valueOf(20), 2, java.math.RoundingMode.HALF_UP);
 
@@ -134,51 +191,5 @@ public class RankingService {
                     return BigDecimal.ZERO;
                 })
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
-    }
-
-    private int calculateParticipationScore(Account account, QuitPlan plan) {
-        LocalDate startDate = plan.getStartDate();
-        LocalDate currentDate = LocalDate.now();
-        List<SmokingRecord> records = smokingRecordRepository.findByAccountAndDateBetweenOrderByDateAsc(
-                account, startDate, currentDate);
-
-        // Tính số ngày đã tham gia ghi chép
-        List<LocalDate> recordedDates = records.stream()
-                .map(SmokingRecord::getDate)
-                .sorted()
-                .collect(Collectors.toList());
-
-        if (recordedDates.isEmpty()) {
-            return 0; // Chưa có ghi chép nào
-        }
-
-        // 1. Điểm cơ bản: mỗi lần ghi chép được 1 điểm
-        int basePoints = 1;
-
-        // 2. Điểm thưởng streak: tính số ngày liên tiếp ghi chép đến hiện tại
-        int streakPoints = 0;
-
-        // Chỉ tính streak nếu có ghi chép trong ngày hôm nay
-        if (recordedDates.get(recordedDates.size() - 1).equals(currentDate)) {
-            int streak = 1;
-            LocalDate expectedDate = currentDate;
-
-            // Đếm ngược từ ngày hiện tại
-            for (int i = recordedDates.size() - 1; i > 0; i--) {
-                LocalDate previousDate = recordedDates.get(i - 1);
-                expectedDate = expectedDate.minusDays(1);
-
-                if (previousDate.equals(expectedDate)) {
-                    streak++;
-                } else {
-                    break;
-                }
-            }
-
-            // Mỗi ngày trong streak được thêm 2 điểm
-            streakPoints = streak * 2;
-        }
-
-        return basePoints + streakPoints;
     }
 }
