@@ -16,6 +16,8 @@ public class AccountResponse {
 
     public String password;
 
+    public String fullName;
+
     public String email;
 
     public String phoneNumber;
@@ -26,7 +28,10 @@ public class AccountResponse {
 
     public String token;
 
+    public String status;
+
     public LocalDateTime createdAt;
+    public Long userId;
 
     // Thông tin riêng cho từng loại tài khoản, gom chung vào DTO này
     public Boolean isVip;
