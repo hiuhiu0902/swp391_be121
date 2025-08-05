@@ -37,7 +37,7 @@ public class AuthenticationService implements UserDetailsService {
     // Implement methods for authentication, such as register and login
     @Autowired
     AuthenticationManager authenticationManager;
-// You can add methods for user registration, login, etc.
+    // You can add methods for user registration, login, etc.
     @Autowired
     TokenService tokenService;
 
@@ -176,6 +176,7 @@ public class AuthenticationService implements UserDetailsService {
     }
     public ProfileResponse viewProfile(String username) {
         Account account = authenticationRepository.findAccountByUserName(username);
+        Member member = memberRepository.findByUser(account);
         if (account == null) {
             throw new ResourceNotFoundException("Account not found");
         }
@@ -185,8 +186,9 @@ public class AuthenticationService implements UserDetailsService {
         if (!currentUsername.equals(username) && !hasAdminRole()) {
             throw new AccessDeniedException("Not authorized to view this profile");
         }
-
-        return modelMapper.map(account, ProfileResponse.class);
+        ProfileResponse profileResponse = modelMapper.map(account, ProfileResponse.class);
+        profileResponse.setVip(member.getIsVip());
+        return profileResponse;
     }
 
     public ProfileResponse updateProfile(String username, ProfileRequest profileRequest) {
@@ -227,6 +229,7 @@ public class AuthenticationService implements UserDetailsService {
         account.setEmail(request.getEmail());
         account.setPhoneNumber(request.getPhoneNumber());
         account.setRole(request.getRole());
+        account.setGender(request.getGender());
         Account newAccount = authenticationRepository.save(account);
         if (request.getRole() != null) {
             switch (request.getRole()) {
@@ -249,7 +252,7 @@ public class AuthenticationService implements UserDetailsService {
                 case COACH -> {
                     fu.se.myplatform.entity.Coach coach = new fu.se.myplatform.entity.Coach();
                     coach.setUser(newAccount);
-                    coach.setStatus(request.getStatus());
+                    coach.setStatus("ACTIVE");
                     coachRepository.save(coach);
                 }
                 default -> {}
@@ -467,13 +470,40 @@ public class AuthenticationService implements UserDetailsService {
                 break;
             case COACH:
                 accounts = accountRepository.findByRole(Role.COACH);
+
                 break;
             default:
                 throw new BadRequestException("Invalid role");
         }
 
         return accounts.stream()
-                .map(account -> modelMapper.map(account, AccountResponse.class))
+                .map(account -> {
+                    AccountResponse dto = modelMapper.map(account, AccountResponse.class);
+
+                    // For MEMBER role, fetch member info to get status
+                    if (roleEnum == Role.MEMBER) {
+                        Member member = memberRepository.findByUser_UserId(account.getUserId());
+                        if (member != null) {
+                            dto.setStatus(member.getStatus());
+                            dto.setMemberId(member.getMemberId());
+                            // set any other member-specific fields if needed
+                        }
+                    }else if (roleEnum == Role.COACH) {
+                        Coach coach = coachRepository.findByUser(account);
+                        if (coach != null) {
+                            dto.setStatus(coach.getStatus());
+                        }
+
+
+                    }else{
+                        Staff staff = staffRepository.findByUser(account);
+                        dto.setStatus(staff.getStatus());
+                    }
+
+                    // For STAFF or COACH, you can do similar fetches if needed
+
+                    return dto;
+                })
                 .toList();
     }
 
