@@ -9,6 +9,8 @@ import org.springframework.stereotype.Service;
 import org.thymeleaf.TemplateEngine;
 import org.thymeleaf.context.Context;
 
+import java.time.LocalDate;
+
 @Service
 public class EmailService {
 
@@ -165,5 +167,29 @@ public class EmailService {
             System.out.println("Error sending account locked notification email: " + e.getMessage());
         }
     }
-}
 
+    public void sendOverSmokingAlert(String coachEmail, String memberName, int cigarettesSmoked, int targetCigarettes, LocalDate date) {
+        try {
+            Context context = new Context();
+            context.setVariable("memberName", memberName);
+            context.setVariable("cigarettesSmoked", cigarettesSmoked);
+            context.setVariable("targetCigarettes", targetCigarettes);
+            context.setVariable("date", date);
+            context.setVariable("supportEmail", "support@myplatform.com");
+
+            String html = templateEngine.process("over-smoking-alert", context);
+
+            MimeMessage mimeMessage = javaMailSender.createMimeMessage();
+            MimeMessageHelper mimeMessageHelper = new MimeMessageHelper(mimeMessage, true);
+
+            mimeMessageHelper.setFrom("admin@gmail.com");
+            mimeMessageHelper.setTo(coachEmail);
+            mimeMessageHelper.setSubject("Cảnh Báo: Thành Viên Hút Vượt Số Điếu Quy Định");
+            mimeMessageHelper.setText(html, true);
+
+            javaMailSender.send(mimeMessage);
+        } catch (Exception e) {
+            System.out.println("Error sending over smoking alert email: " + e.getMessage());
+        }
+    }
+}

@@ -30,6 +30,7 @@ public class SmokingRecordAPI {
     @Autowired
     QuitPlanService quitPlanService;
 
+
     @PostMapping("/record")
     public ResponseEntity<SmokingRecordResponse> recordSmokingData(
             @Valid @RequestBody SmokingRecordRequest request,
@@ -80,7 +81,7 @@ public class SmokingRecordAPI {
             })
             .reduce(BigDecimal.ZERO, BigDecimal::add);
         response.setTotalMoneySaved(totalMoneySaved);
-
+        smokingRecordService.checkAndSendOverSmokingAlert(record);
         // Cập nhật message
         if (record.getCigarettesSmoked() > targetCigarettesForDay) {
             response.setMessage("Bạn đã hút vượt quá target " + Math.abs(cigaretteDifference) + 

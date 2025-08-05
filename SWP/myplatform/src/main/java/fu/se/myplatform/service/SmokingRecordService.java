@@ -3,8 +3,11 @@ package fu.se.myplatform.service;
 import fu.se.myplatform.dto.SmokingRecordRequest;
 import fu.se.myplatform.dto.WeeklyProgressStats;
 import fu.se.myplatform.entity.Account;
+import fu.se.myplatform.entity.Member;
 import fu.se.myplatform.entity.QuitPlan;
 import fu.se.myplatform.entity.SmokingRecord;
+import fu.se.myplatform.repository.AuthenticationRepository;
+import fu.se.myplatform.repository.MemberRepository;
 import fu.se.myplatform.repository.QuitPlanRepository;
 import fu.se.myplatform.repository.SmokingRecordRepository;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -26,6 +29,15 @@ public class SmokingRecordService {
 
     @Autowired
     private AuthenticationService authenticationService;
+
+    @Autowired
+    private EmailService emailService;
+
+    @Autowired
+    private MemberRepository memberRepository;
+
+    @Autowired
+    private AuthenticationRepository accountRepository;
 
     public SmokingRecord saveSmokingRecord(SmokingRecordRequest request, LocalDate date) {
         Account account = authenticationService.getCurrentAccount();
@@ -239,6 +251,38 @@ public class SmokingRecordService {
         }
 
         return stats;
+    }
+
+    public void checkAndSendOverSmokingAlert(SmokingRecord record) {
+        Account account = authenticationService.getCurrentAccount();
+        Member member = memberRepository.findByUser(account);
+        QuitPlan quitPlan = quitPlanRepository.findByAccount(account)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy kế hoạch cai thuốc!"));
+        if (record.getCigarettesSmoked() > quitPlan.getCigarettesPerDay()) {
+            // Chỉ gửi email nếu member có assigned coach
+            if (member.getCoach() != null) {
+                String coachEmail = member.getCoach().getUser().getEmail();
+                emailService.sendOverSmokingAlert(
+                    coachEmail,
+                    member.getUser().getFullName(),
+                    record.getCigarettesSmoked(),
+                    quitPlan.getCigarettesPerDay(),
+                    record.getDate()
+                );
+            }
+        }
+    }
+
+    public SmokingRecord createRecord(SmokingRecord record) {
+        // ...existing code for validating and saving record...
+
+        Optional<QuitPlan> planOptional = quitPlanRepository.findByAccount(record.getAccount());
+        if (planOptional.isPresent()) {
+            QuitPlan plan = planOptional.get();
+            checkAndSendOverSmokingAlert(record);
+        }
+
+        return smokingRecordRepository.save(record);
     }
 
     public void deleteRecord(LocalDate date) {

@@ -45,9 +45,11 @@ public class QuitPlanService {
     @Transactional
     public QuitPlanResponse createSystemGeneratedPlan(SystemPlanRequestDTO request) {
         Account account = authenticationService.getCurrentAccount();
+
         checkExistingPlan(account);
-        Assessment assessment = assessmentRepository.findById(request.getAssessmentId())
-                .orElseThrow(() -> new MyException("ID đánh giá không hợp lệ."));
+        Assessment assessment = assessmentRepository.findByAccount(account);
+//        Assessment assessment = assessmentRepository.findById(request.getAssessmentId())
+//                .orElseThrow(() -> new MyException("ID đánh giá không hợp lệ."));
 
 
         if (!assessment.getAccount().getUserId().equals(account.getUserId())) {
@@ -74,8 +76,10 @@ public class QuitPlanService {
         checkExistingPlan(account);
         validateDuration(request.getDurationWeeks());
 
-        Assessment assessment = assessmentRepository.findById(request.getAssessmentId())
-                .orElseThrow(() -> new MyException("ID đánh giá không hợp lệ."));
+//        Assessment assessment = assessmentRepository.findById(request.getAssessmentId())
+//                .orElseThrow(() -> new MyException("ID đánh giá không hợp lệ."));
+        Assessment assessment = assessmentRepository.findByAccount(account);
+
         QuitPlan plan = createAndPopulatePlan(request, account, assessment, request.getDurationWeeks());
         List<TaperingStep> schedule = generateLinearTaperingSchedule(
                 plan.getStartDate(), plan.getDurationWeeks(), plan.getCigarettesPerDay()
