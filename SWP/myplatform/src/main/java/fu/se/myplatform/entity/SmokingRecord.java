@@ -3,6 +3,9 @@ package fu.se.myplatform.entity;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
+import org.hibernate.annotations.OnDelete;
+import org.hibernate.annotations.OnDeleteAction;
+
 import java.time.LocalDate;
 
 @Entity
@@ -23,4 +26,11 @@ public class SmokingRecord {
 
     @Column(name = "cigarettes_smoked", nullable = false)
     private int cigarettesSmoked;
+
+
+    // COLUMN MOI
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "plan_id", nullable = false)
+    @OnDelete(action = OnDeleteAction.CASCADE)
+    private QuitPlan quitPlan;
 }

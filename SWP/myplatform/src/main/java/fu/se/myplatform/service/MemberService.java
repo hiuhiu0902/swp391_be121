@@ -4,11 +4,13 @@ import fu.se.myplatform.dto.CoachShortDTO;
 import fu.se.myplatform.entity.Account;
 import fu.se.myplatform.entity.Coach;
 import fu.se.myplatform.entity.Member;
+import fu.se.myplatform.entity.Rating;
 import fu.se.myplatform.exception.exception.AuthenticationException;
 import fu.se.myplatform.repository.CoachRepository;
 import fu.se.myplatform.repository.MemberRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -28,9 +30,13 @@ public class MemberService {
     MemberRepository memberRepository;
     @Autowired
     CoachService coachService;
+    @Autowired
+    RatingService ratingService;
+    @Autowired
+    EmailService emailService;
 
     // --- LOGIC MỚI ĐỂ NÂNG CẤP VIP ---
-    private static final int VIP_DURATION_DAYS = 30;
+    private static final int VIP_DURATION_DAYS = 42;
 
     /**
      * Phương thức công khai để nâng cấp VIP cho một member.
@@ -118,6 +124,7 @@ public class MemberService {
                     dto.setName(coach.getUser().getFullName());
                     dto.setAvatarUrl(coach.getUser().getAvatarUrl());
                     dto.setStatus(coach.getStatus());
+                    dto.setAverageRating(ratingService.averageRatingForCoach(coach.getCoachId()));
                     return dto;
                 })
                 .collect(Collectors.toList());
@@ -141,5 +148,28 @@ public class MemberService {
         coachShortDTO.setAvatarUrl(coach.getProfileImage() != null
                 ? "/avatars/" + coach.getCoachId() + ".jpg" : null);
         return coachShortDTO;
+    }
+
+    @Transactional
+    @Scheduled(cron = "0 0 1 * * *") // Runs at 1 AM every day
+    public void checkAndExpireVipMemberships() {
+        List<Member> vipMembers = memberRepository.findByIsVipTrue();
+        LocalDate today = LocalDate.now();
+
+        for (Member member : vipMembers) {
+            if (member.getVipExpiryDate() != null && member.getVipExpiryDate().isBefore(today)) {
+                String link = "http://localhost:3000/payment";
+                emailService.sendVipExpiredNotification(member.getUser().email,
+                        member.getUser().getFullName(),
+                        member.getVipExpiryDate(),link);
+                updateVipDetails(member, false, null, null);
+
+                if (member.getCoach() != null) {
+                    member.setCoach(null);
+
+                }
+                memberRepository.save(member);
+            }
+        }
     }
 }

@@ -187,7 +187,10 @@ public class AuthenticationService implements UserDetailsService {
             throw new AccessDeniedException("Not authorized to view this profile");
         }
         ProfileResponse profileResponse = modelMapper.map(account, ProfileResponse.class);
-        profileResponse.setVip(member.getIsVip());
+        if(account.getRole() == Role.MEMBER) {
+            profileResponse.setVip(member.getIsVip());
+        }
+
         return profileResponse;
     }
 
@@ -487,7 +490,7 @@ public class AuthenticationService implements UserDetailsService {
                         if (member != null) {
                             dto.setStatus(member.getStatus());
                             dto.setMemberId(member.getMemberId());
-                            // set any other member-specific fields if needed
+                            dto.setIsVip(member.getIsVip());
                         }
                     }else if (roleEnum == Role.COACH) {
                         Coach coach = coachRepository.findByUser(account);

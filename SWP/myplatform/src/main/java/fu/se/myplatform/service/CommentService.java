@@ -68,6 +68,7 @@ public class CommentService {
         response.setBlogId(savedComment.getBlogId());
         response.setUserId(savedComment.getUserId());
         response.setUserName(savedComment.getUser().getUsername());
+        response.setUserFullName(savedComment.getUser().getFullName());
         response.setCreatedAt(savedComment.getCreatedAt());
         response.setDeleted(savedComment.isDeleted());
 

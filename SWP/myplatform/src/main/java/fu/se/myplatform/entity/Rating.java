@@ -14,7 +14,7 @@ public class Rating {
 
     private int stars;
 
-    @Column
+    @Column(columnDefinition = "NVARCHAR(MAX)", nullable = false)
     private String comment;
 
     @ManyToOne

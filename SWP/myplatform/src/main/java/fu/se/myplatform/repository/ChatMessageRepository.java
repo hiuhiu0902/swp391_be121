@@ -4,8 +4,6 @@ import fu.se.myplatform.entity.ChatMessage;
 import fu.se.myplatform.entity.Coach;
 import fu.se.myplatform.entity.Member;
 import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.Query;
-import org.springframework.data.repository.query.Param;
 
 import java.time.LocalDateTime;
 import java.util.List;

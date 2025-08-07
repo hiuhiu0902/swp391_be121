@@ -2,6 +2,7 @@ package fu.se.myplatform.repository;
 
 import fu.se.myplatform.entity.Account;
 import fu.se.myplatform.entity.QuitPlan;
+import fu.se.myplatform.enums.DependencyLevel;
 import fu.se.myplatform.enums.QuitPlanStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -18,4 +19,6 @@ public interface QuitPlanRepository extends JpaRepository<QuitPlan, Long> {
     long countAll();
 
     long countByStatus(QuitPlanStatus status);
+
+    long countByAssessment_DependencyLevel(DependencyLevel dependencyLevel);
 }

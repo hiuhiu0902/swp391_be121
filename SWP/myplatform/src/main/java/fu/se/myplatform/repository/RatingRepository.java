@@ -1,9 +1,14 @@
 package fu.se.myplatform.repository;
 
+import fu.se.myplatform.entity.Coach;
 import fu.se.myplatform.entity.Rating;
 import org.springframework.data.jpa.repository.JpaRepository;
+
+import java.util.List;
 
 public interface RatingRepository extends JpaRepository<Rating, Long> {
     // Kiểm tra member đã đánh giá coach này chưa (chỉ được 1 lần)
     boolean existsByMember_MemberIdAndCoach_CoachId(Long memberId, Long coachId);
+
+    List<Rating> findByCoach(Coach coach);
 }

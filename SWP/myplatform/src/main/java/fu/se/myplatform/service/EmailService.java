@@ -192,4 +192,30 @@ public class EmailService {
             System.out.println("Error sending over smoking alert email: " + e.getMessage());
         }
     }
+
+    public void sendVipExpiredNotification(String recipientEmail, String memberName, LocalDate expiryDate, String renewalLink) {
+        try {
+            // Prepare the context for the template
+            Context context = new Context();
+            context.setVariable("memberName", memberName);
+            context.setVariable("vipExpiryDate", expiryDate);
+            context.setVariable("renewalLink", renewalLink);
+
+            String html = templateEngine.process("vip-expired-notification", context);
+
+            MimeMessage mimeMessage = javaMailSender.createMimeMessage();
+            MimeMessageHelper mimeMessageHelper = new MimeMessageHelper(mimeMessage, true);
+
+            mimeMessageHelper.setFrom("admin@gmail.com");
+            mimeMessageHelper.setTo(recipientEmail);
+            mimeMessageHelper.setSubject("Thông Báo: Gói VIP Của Bạn Đã Hết Hạn");
+            mimeMessageHelper.setText(html, true); // true = the content is HTML
+
+            javaMailSender.send(mimeMessage);
+            System.out.println("VIP expiration notification sent successfully to " + recipientEmail);
+
+        } catch (Exception e) {
+            System.out.println("Error sending VIP expiration notification email: " + e.getMessage());
+        }
+    }
 }

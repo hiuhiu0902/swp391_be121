@@ -56,6 +56,7 @@ public class SmokingRecordService {
         record.setAccount(account);
         record.setDate(date);
         record.setCigarettesSmoked(request.getCigarettesSmoked());
+        record.setQuitPlan(plan);
 
         return smokingRecordRepository.save(record);
     }

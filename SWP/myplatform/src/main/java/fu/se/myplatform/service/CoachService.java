@@ -8,6 +8,7 @@ import fu.se.myplatform.repository.QuitPlanRepository;
 import fu.se.myplatform.repository.SmokingRecordRepository;
 import org.modelmapper.ModelMapper;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import lombok.RequiredArgsConstructor;
 import org.springframework.transaction.annotation.Transactional;
@@ -262,5 +263,36 @@ public class CoachService {
             response.setDependencyLevel(plan.getAssessment().getDependencyLevel());
         }
         return response;
+    }
+
+    @Transactional
+    @Scheduled(cron = "0 0 2 * * *") // Runs at 2 AM every day
+    public void unassignCompletedMembers() {
+        List<Member> assignedMembers = memberRepository.findByCoachIsNotNull();
+
+        if (assignedMembers.isEmpty()) {
+            return;
+        }
+
+        for (Member member : assignedMembers) {
+            Optional<QuitPlan> planOpt = quitPlanRepository.findByAccount(member.getUser());
+
+            if (planOpt.isPresent()) {
+                QuitPlan plan = planOpt.get();
+                LocalDate startDate = plan.getStartDate();
+                int durationInWeeks = plan.getTaperingSchedule().size();
+
+                if (durationInWeeks > 0) {
+                    LocalDate endDate = startDate.plusWeeks(durationInWeeks);
+
+                    if (endDate.isBefore(LocalDate.now())) {
+                        ;
+                        member.setCoach(null);
+                        member.setStatus("COMPLETED"); // Assuming 'status' can be updated to reflect this
+                        memberRepository.save(member);
+                    }
+                }
+            }
+        }
     }
 }

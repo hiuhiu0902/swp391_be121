@@ -23,23 +23,41 @@ public class FagerstromService {
         DependencyLevel level = determineDependencyLevel(score);
         Account currentUser = authenticationService.getCurrentAccount();
 
-        Assessment assessment = new Assessment();
-        assessment.setScore(score);
-        assessment.setDependencyLevel(level);
-        assessment.setAccount(currentUser);
-        assessment.setCreatedAt(LocalDateTime.now());
-
-        return assessmentRepository.save(assessment);
+        Assessment assessment = assessmentRepository.findByAccount(currentUser);
+        if(assessment == null) {
+            Assessment newAssessment = new Assessment();
+            newAssessment.setScore(score);
+            newAssessment.setDependencyLevel(level);
+            newAssessment.setAccount(currentUser);
+            newAssessment.setCreatedAt(LocalDateTime.now());
+            assessmentRepository.save(newAssessment);
+            return newAssessment;
+        }else{
+            assessment.setScore(score);
+            assessment.setDependencyLevel(level);
+            assessment.setAccount(currentUser);
+            assessment.setCreatedAt(LocalDateTime.now());
+            assessmentRepository.save(assessment);
+            return  assessment;
+        }
     }
 
+    public boolean hasAssessment(Long userId) {
+        return assessmentRepository.existsByAccount_UserId(userId);
+    }
+    public Assessment getAssessment() {
+        Account currentUser = authenticationService.getCurrentAccount();
+        Assessment assessment = assessmentRepository.findByAccount(currentUser);
+        return assessment;
+    }
     private int calculateFagerstromScore(FagerstromTestRequest test) {
         return test.getAnswer1() + test.getAnswer2() + test.getAnswer3() +
                 test.getAnswer4() + test.getAnswer5() + test.getAnswer6();
     }
 
-    private DependencyLevel determineDependencyLevel(int score) {
-        if (score <= 4) return DependencyLevel.LOW;
-        if (score <= 7) return DependencyLevel.MEDIUM;
+    public DependencyLevel determineDependencyLevel(int score) {
+        if (score <= 8) return DependencyLevel.LOW;
+        if (score <= 15) return DependencyLevel.MEDIUM;
         return DependencyLevel.HIGH;
     }
 }

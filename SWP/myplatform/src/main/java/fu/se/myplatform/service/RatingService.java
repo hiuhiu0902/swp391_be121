@@ -37,4 +37,13 @@ public class RatingService {
     public List<Rating> getAllRatings() {
         return ratingRepository.findAll();
     }
+    public int averageRatingForCoach(Long coachId) {
+        Coach coach = coachRepository.findById(coachId)
+                .orElseThrow(() -> new AuthenticationException("Huấn luyện viên không tồn tại"));
+        List<Rating> ratings = ratingRepository.findByCoach(coach);
+        if (ratings.isEmpty()) {
+            return 0;
+        }
+        return (int) ratings.stream().mapToInt(Rating::getStars).average().orElse(0);
+    }
 }

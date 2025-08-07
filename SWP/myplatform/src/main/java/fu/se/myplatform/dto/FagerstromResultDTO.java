@@ -7,8 +7,11 @@ import lombok.Data;
 public class FagerstromResultDTO {
     public int score;
     public DependencyLevel level;
-    public FagerstromResultDTO(int score, DependencyLevel level) {
+    public long durationWeek;
+
+    public FagerstromResultDTO(int score, DependencyLevel level, long durationWeek) {
         this.score = score;
         this.level = level;
+        this.durationWeek = durationWeek;
     }
 }

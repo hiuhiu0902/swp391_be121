@@ -21,4 +21,7 @@ public interface MemberRepository extends JpaRepository<Member, Long> {
 
     @Query("SELECT COUNT(m) FROM Member m WHERE m.coach.coachId = :coachId")
     long countByCoachId(Long coachId);
+
+    List<Member> findByCoachIsNotNull();
+    List<Member> findByIsVipTrue();
 }

@@ -7,4 +7,5 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface AssessmentRepository extends JpaRepository<Assessment, Long> {
     Assessment findByAccount(Account account);
+    boolean existsByAccount_UserId(Long userId);
 }

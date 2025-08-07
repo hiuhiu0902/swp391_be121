@@ -18,10 +18,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
@@ -31,6 +28,8 @@ public class QuitPlanService {
 
     @Autowired
     AuthenticationService authenticationService;
+    @Autowired
+    QuitPlanService quitPlanService;
 
     @Autowired
     ModelMapper modelMapper;
@@ -462,7 +461,7 @@ public class QuitPlanService {
         }
     }
 
-    private int determinePlanDuration(DependencyLevel level) {
+    public int determinePlanDuration(DependencyLevel level) {
         switch (level) {
             case LOW: return 3;
             case MEDIUM: return 4;
@@ -573,5 +572,20 @@ public class QuitPlanService {
                 .orElseThrow(() -> new ResourceNotFoundException("No quit plan found for this account"));
         quitPlan.setStatus(status);
         quitPlanRepository.save(quitPlan);
+    }
+
+    public Map<String, Long> getUserCountByDependencyLevel() {
+        Map<String, Long> stats = new HashMap<>();
+
+        // Count users for each dependency level
+        long lowCount = quitPlanRepository.countByAssessment_DependencyLevel(DependencyLevel.LOW);
+        long mediumCount = quitPlanRepository.countByAssessment_DependencyLevel(DependencyLevel.MEDIUM);
+        long highCount = quitPlanRepository.countByAssessment_DependencyLevel(DependencyLevel.HIGH);
+
+        stats.put("LOW", lowCount);
+        stats.put("MEDIUM", mediumCount);
+        stats.put("HIGH", highCount);
+
+        return stats;
     }
 }

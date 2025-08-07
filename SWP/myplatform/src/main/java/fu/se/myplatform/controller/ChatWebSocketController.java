@@ -52,23 +52,18 @@ public class ChatWebSocketController {
     public void sendChatHistory(@Payload ChatMessageRequest chatRequest) {
         try {
             List<ChatMessageResponse> chatHistory = chatMessageService.getChatHistory(chatRequest.getMemberId(), chatRequest.getCoachId());
-
-            if (chatHistory.isEmpty()) {
-                System.out.println("No chat history available for member: " + chatRequest.getMemberId());
-                messagingTemplate.convertAndSend("/topic/chat." + chatRequest.getMemberId() + "." + chatRequest.getCoachId(), "No chat history available.");
-                return;
-            }
-
             String topic = "/topic/chat." + chatRequest.getMemberId() + "." + chatRequest.getCoachId();
 
-            // Gửi lịch sử chat chỉ khi người dùng yêu cầu
-            chatHistory.forEach(response -> {
-                messagingTemplate.convertAndSend(topic, response);
-            });
+            // Gửi toàn bộ danh sách lịch sử chat trong một lần duy nhất
+            // Phía frontend sẽ nhận được một mảng (array) các đối tượng tin nhắn
+            messagingTemplate.convertAndSend(topic, chatHistory);
+
+            System.out.println("Sent " + chatHistory.size() + " historical messages to topic: " + topic);
 
         } catch (Exception e) {
             e.printStackTrace();
-            messagingTemplate.convertAndSend("/topic/chat." + chatRequest.getMemberId() + "." + chatRequest.getCoachId(), "Error occurred while retrieving chat history.");
+            String errorTopic = "/topic/chat." + chatRequest.getMemberId() + "." + chatRequest.getCoachId();
+            messagingTemplate.convertAndSend(errorTopic, "Error occurred while retrieving chat history.");
         }
     }
 

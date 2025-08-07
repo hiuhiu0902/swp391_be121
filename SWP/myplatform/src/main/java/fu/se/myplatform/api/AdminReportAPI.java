@@ -43,6 +43,8 @@ public class AdminReportAPI {
 
     // 2. Thống kê số lượt đăng nhập/đăng ký theo thời gian (giả sử đã có log)
     @GetMapping("/report/logins")
+    @SecurityRequirement(name = "bearerAuth")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Map<String, Object>> getLoginRegisterStats() {
         Map<String, Object> stats = new HashMap<>();
         stats.put("loginCount", logReportService.getLoginCount());
@@ -52,6 +54,8 @@ public class AdminReportAPI {
 
     // 4. Thống kê lỗi hệ thống (giả sử đã có log)
     @GetMapping("/report/errors")
+    @SecurityRequirement(name = "bearerAuth")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Map<String, Object>> getErrorStats() {
         Map<String, Object> stats = new HashMap<>();
         stats.put("errorCount", logReportService.getErrorCount());
@@ -171,6 +175,14 @@ public class AdminReportAPI {
 
         stats.put("serviceStats", serviceStats);
 
+        return ResponseEntity.ok(stats);
+    }
+
+    @GetMapping("/report/dependency-stats")
+    @SecurityRequirement(name = "bearerAuth")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<Map<String, Long>> getDependencyLevelStats() {
+        Map<String, Long> stats = quitPlanService.getUserCountByDependencyLevel();
         return ResponseEntity.ok(stats);
     }
 }

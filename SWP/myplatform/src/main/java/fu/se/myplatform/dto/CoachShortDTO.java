@@ -8,4 +8,5 @@ public class CoachShortDTO {
     public String name;
     public String avatarUrl;
     public String status;
+    public int averageRating;
 }

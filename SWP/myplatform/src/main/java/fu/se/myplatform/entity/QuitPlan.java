@@ -95,4 +95,13 @@ public class QuitPlan {
             this.progressList.clear();
         }
     }
+
+    // CAC COLUMN MOI DO KIET GUI
+    @OneToMany(
+            mappedBy = "quitPlan",
+            cascade = CascadeType.ALL,
+            orphanRemoval = true,
+            fetch = FetchType.LAZY
+    )
+    private List<SmokingRecord> smokingRecords = new ArrayList<>();
 }

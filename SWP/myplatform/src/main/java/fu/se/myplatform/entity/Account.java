@@ -33,6 +33,7 @@ public class  Account implements UserDetails {
     @Size(min = 6, message = "Password phải ít nhất 6 kí tự")
     public String password;
 
+    @Column(columnDefinition = "NVARCHAR(MAX)", nullable = false)
     public String fullName;
 
     @Column(unique = true, nullable = false)

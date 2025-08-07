@@ -25,7 +25,7 @@ public class Coach {
     @Column(name = "status")
     private String status;
 
-    @Column(name = "address")
+    @Column(columnDefinition = "NVARCHAR(MAX)")
     private String address;
 
     @OneToMany(mappedBy = "coach")

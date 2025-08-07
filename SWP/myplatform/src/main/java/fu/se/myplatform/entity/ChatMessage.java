@@ -13,7 +13,8 @@ public class ChatMessage {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
-    @Column( columnDefinition = "TEXT")// ID người nhận
+
+    @Column(columnDefinition = "NVARCHAR(MAX)", nullable = false)
     private String content;    // Nội dung tin nhắn
     @Column
     private LocalDateTime sentAt;
